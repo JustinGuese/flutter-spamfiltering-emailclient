@@ -4,7 +4,17 @@
 
 # DataFortress
 
-DataFortress is a privacy-first, editorial desktop and mobile email client engineered for focus, local intelligence, and collective defense. Built with Flutter and a pure Dart Bayesian engine, it classifies incoming mail directly on your device, blocking trackers and spam while ensuring personal messages and credentials never leave your hardware.
+**An email client whose spam filter you can read, train and audit.**
+
+<p align="center">
+  <a href="https://justinguese.github.io/flutter-spamfiltering-emailclient/"><b>Documentation</b></a> ·
+  <a href="https://justinguese.github.io/flutter-spamfiltering-emailclient/getting-started/install/">Get started</a> ·
+  <a href="https://justinguese.github.io/flutter-spamfiltering-emailclient/concepts/privacy-model/">Privacy model</a>
+</p>
+
+Most spam filters are black boxes that live on someone else's server, which means your mail has to pass through someone else's cloud first. DataFortress is a Flutter IMAP/SMTP client for iOS, Android, macOS, Windows and Linux that does the filtering on your device instead. A Robinson-Fisher Bayes classifier, SPF/DKIM/DMARC signals and link heuristics produce a score, and the Evidence Sheet shows the exact tokens behind every verdict. One tap on Inbox, Newsletter or Spam trains the filter.
+
+Collective defense works without identifying anyone. Clients share MinHash fingerprints and URL hashes behind a hashcash proof-of-work, with no user ID, no device ID and never any message content. The engine is a standalone pure-Dart package (`spam_core`) that you can use in your own project.
 
 ---
 
@@ -31,7 +41,7 @@ flutter run
 
 ## Documentation
 
-Comprehensive documentation covering installation, configuration, filter architecture, privacy models, and contribution guidelines is available in the [`docs/`](docs/index.md) directory.
+Full documentation is published at **<https://justinguese.github.io/flutter-spamfiltering-emailclient/>**. It covers installation, configuration, filter architecture, the privacy model, the backend protocol and contribution guidelines. The sources live in [`docs/`](docs/index.md).
 
 ---
 

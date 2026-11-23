@@ -1,4 +1,4 @@
-package com.datafortress.mail.app
+package com.datafortress.spamfilteringemailclient
 
 import io.flutter.embedding.android.FlutterActivity
 

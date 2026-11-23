@@ -84,7 +84,7 @@ On Windows, `flutter_secure_storage` persists credentials via the Windows Data P
 
 - **Gradle Build Script**: Kotlin DSL (`app/android/app/build.gradle.kts`).
 - **Java Compatibility**: Java 17 (`JavaVersion.VERSION_17`, Kotlin JVM target `17`).
-- **Application ID / Namespace**: `com.datafortress.mail.app`.
+- **Application ID / Namespace**: `com.datafortress.spamfilteringemailclient`.
 - **SDK Targets**:
   - `compileSdk`: Inherited from `flutter.compileSdkVersion`.
   - `minSdk`: Inherited from `flutter.minSdkVersion` (minimum supported version is determined by plugin requirements).

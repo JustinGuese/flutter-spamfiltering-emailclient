@@ -8,7 +8,7 @@
 PRODUCT_NAME = app
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.datafortress.mail.app
+PRODUCT_BUNDLE_IDENTIFIER = com.datafortress.spamfilteringemailclient
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.datafortress.mail. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 com.datafortress.spamfilteringemailclient. All rights reserved.
