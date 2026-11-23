@@ -80,3 +80,7 @@ static DfFunnelConfig get config => const DfFunnelConfig(
 
 - **Deferred Login**: Login is not required to use DataFortress Mail. Users proceed directly to "Add Account" to configure IMAP credentials.
 - **Skippable Paywall**: The paywall step is completely dismissible without entering payment details or authentication credentials.
+
+![Onboarding Flow](../assets/screenshots/onboarding_page1.png)
+
+![Connect Account Dialog](../assets/screenshots/connect_account.png)

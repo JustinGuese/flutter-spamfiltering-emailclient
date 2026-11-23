@@ -2,6 +2,8 @@
 
 DataFortress Mail is engineered around the principle that personal email data must remain private and reside strictly on user-controlled hardware. This document outlines the application's threat boundaries, data flow rules, sanitization architecture, and credential protection.
 
+![Onboarding Privacy Screen](../assets/screenshots/onboarding_page1.png)
+
 ## Data Flow: What Leaves the Device
 
 The following table itemizes what data crosses network boundaries versus what remains exclusively on the local client device:

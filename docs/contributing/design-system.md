@@ -111,6 +111,8 @@ if (AppTheme.isThreePane(MediaQuery.of(context).size.width)) {
 }
 ```
 
+![The Ledger Desk Three-Pane Responsive Layout](../assets/screenshots/mainview.png)
+
 ### Row Density
 
 User-configurable density toggles in mailbox list views (`AppTheme`):

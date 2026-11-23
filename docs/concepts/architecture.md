@@ -150,6 +150,8 @@ sequenceDiagram
    - If `0.60 <= spamScore < 0.90`: The message is tagged as spam in the local database and highlighted in the unsure band for review.
    **Search** (`app/lib/search/`, `SyncEngine.searchRemote`) is local first: an FTS5 index (`search_index`) answers immediately. After a typing pause the same query is translated to an IMAP `SEARCH` and run against each account's server, on the same queue and connection as sync (the account is synced first). Matches that are not stored yet (older mail, Archive and other unsynced folders; up to 25 per folder, newest first) are stored with the same writer sync uses, and the local query then shows them. Junk, Trash, Drafts and virtual folders are not searched, and imported mail is not scored. Only the user's mail server sees the query.
 
+   ![On-Device and Server Search](../assets/screenshots/search.png)
+
    Messages in the **Sent** folder are stored but skipped by this step entirely: they are never scored, never moved to Junk, and never train the filter. Servers that nest folders (Gmail's `[Gmail]/Sent Mail`) are covered by a recursive `LIST`; virtual folders such as Gmail's All Mail are neither listed nor synced.
 6. **Attachments** (`app/lib/mail/attachments.dart`): see [Attachments](#attachments) below.
 7. **Reactive UI Update**:

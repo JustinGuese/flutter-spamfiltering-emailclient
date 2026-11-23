@@ -84,6 +84,8 @@ When a message passes the spam check ($P_\text{spam} < 0.60$), the Stage-B class
 
 On a brand-new installation with an empty database, Bayes classification cannot compute probabilities without prior token frequencies. DataFortress Mail addresses this cold-start state via two mechanisms:
 
+![Onboarding - Spam Filter on Device](../assets/screenshots/onboarding_page2.png)
+
 1. **Seed Prior (`app/assets/prior_model.json`)**:
    !!! note "Seed Prior Honest Assessment"
        The bundled `prior_model.json` is a **hand-curated seed** containing approximately 25 high-confidence spam tokens (e.g., `viagra`, `cialis`, `casino`, `pharmacy`, `rolex`, `mortgage`). It is **not** a trained statistical model derived from large public email corpora. Its sole purpose is to provide immediate detection for blatant unsolicited bulk mail before the user trains the filter.
@@ -122,6 +124,8 @@ flowchart TD
 
 To eliminate black-box classification decisions, DataFortress Mail provides an on-device inspection sheet for every scored message:
 
+![Evidence Sheet and Spam Classification Breakdown](../assets/screenshots/spamexmaple.png)
+
 - **Access**: Available from the reader view by tapping the classification badge.
 - **Contents (`app/lib/ui/filter/evidence_sheet.dart`)**:
   - Total calculated spam probability percentage.
@@ -132,6 +136,8 @@ To eliminate black-box classification decisions, DataFortress Mail provides an o
 
 Tapping a figure in the sidebar's "Your filter" card (`app/lib/ui/protection/`) opens a full-screen view that replays your own spam in four stages. Counts come from the local `classifications` table (`app/lib/filter/protection_stats.dart`); nothing is estimated and nothing is sent anywhere.
 
+![The Protection Screen Replay](../assets/screenshots/protection-stats.png)
+
 | Stage | What it shows |
 |---|---|
 | No filter | Every message stored as spam would have reached the inbox. |
@@ -140,3 +146,5 @@ Tapping a figure in the sidebar's "Your filter" card (`app/lib/ui/protection/`) 
 | Pro | Not a measurement. It shows what a new device knows with and without encrypted filter sync (the learned-word count carried over versus zero), with the upgrade card. It does not claim a higher catch rate: the neural scorer is not shipped yet (see [Premium](premium.md)). |
 
 Other tabs list caught messages (labelled Filter, Community or You) and what was learned. "Words learned" counts rows in `tokens`; the filter stores hashes, so no word list can be shown. When nothing has been caught yet the screen shows example numbers, clearly labelled as a sample. The "Pro" upgrade card appears for non-Pro users and opens the same upsell sheet as Settings, with price and renewal terms.
+
+![The Protection Screen Statistics & Words Learned](../assets/screenshots/protection-stats2.png)

@@ -2,6 +2,8 @@
 
 DataFortress Mail is a privacy-first, editorial desktop and mobile email client engineered for focus, local intelligence, and collective defense. It is built with Flutter, a pure Dart Bayesian classification core, and an optional zero-knowledge community backend protocol.
 
+![DataFortress Mail Interface - The Ledger Desk](assets/screenshots/mainview.png)
+
 The project is structured as an open-core system:
 - The full client application (`app/`), the Bayesian core engine (`packages/spam_core/`), offline model tooling (`tools/train_prior/`), and the client-server protocol are open source under the Apache-2.0 license.
 - The hosted community reporting network and cloud synchronization services operate as hosted backend infrastructure with documented open client interfaces.

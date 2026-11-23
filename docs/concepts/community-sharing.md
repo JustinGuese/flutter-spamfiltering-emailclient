@@ -6,6 +6,10 @@ For the formal privacy architecture and cryptographic definitions, see the [Priv
 
 ## Client Workflow Overview
 
+DataFortress introduces an anonymous collective defense model that turns private individual spam reports into network-wide protection:
+
+![Onboarding Collective Defense](../assets/screenshots/onboarding_page3.png)
+
 The community defense loop operates continuously on the client device through local fingerprint generation, guarded reporting, and periodic blocklist delta synchronization:
 
 ```mermaid

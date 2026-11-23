@@ -12,6 +12,10 @@
   <a href="https://justinguese.github.io/flutter-spamfiltering-emailclient/concepts/privacy-model/">Privacy model</a>
 </p>
 
+<p align="center">
+  <img src="screenshots/mainview.png" alt="DataFortress Main Interface - The Ledger Desk" width="850">
+</p>
+
 Most spam filters are black boxes that live on someone else's server, which means your mail has to pass through someone else's cloud first. DataFortress is a Flutter IMAP/SMTP client for iOS, Android, macOS, Windows and Linux that does the filtering on your device instead. A Robinson-Fisher Bayes classifier, SPF/DKIM/DMARC signals and link heuristics produce a score, and the Evidence Sheet shows the exact tokens behind every verdict. One tap on Inbox, Newsletter or Spam trains the filter.
 
 Collective defense works without identifying anyone. Clients share MinHash fingerprints and URL hashes behind a hashcash proof-of-work, with no user ID, no device ID and never any message content. The engine is a standalone pure-Dart package (`spam_core`) that you can use in your own project.
@@ -21,10 +25,33 @@ Collective defense works without identifying anyone. Clients share MinHash finge
 ## Features
 
 - **"The Ledger Desk" Design**: Restrained ink-on-paper aesthetic with responsive adaptive layouts (single stack, two-pane, three-pane) and list density toggles. Includes bundled typography (Fraunces, Public Sans, JetBrains Mono) with zero runtime Google Fonts network calls.
+
+  <p align="center">
+    <img src="screenshots/mainview.png" alt="The Ledger Desk Interface" width="750">
+  </p>
 - **Transparent Local Spam Filter**: Local Robinson-Fisher Bayesian analysis with 3-way classification (Inbox · Newsletter · Spam) and an interactive Evidence Sheet that details exact token weights, SPF/DKIM/DMARC authentication signals, and heuristic flags.
+
+  <p align="center">
+    <img src="screenshots/spamexmaple.png" alt="Evidence Sheet and Spam Verdict Breakdown" width="750">
+  </p>
+
 - **Everyday Mail Client**: Multi-account IMAP/SMTP, Sent folder, Reply / Reply All / Forward with proper threading headers, attachments in both directions (attach files up to 18 MB; received files download from your mail server when you open them; forwards keep the original's files), and a full-screen reading view.
+
+  <p align="center">
+    <img src="screenshots/connect_account.png" alt="Connecting an Account via IMAP/SMTP" width="750">
+  </p>
+
 - **Search**: On-device full-text search over subjects, senders, recipients and message text. Words match as you type and are ranked by relevance; operators such as `from:`, `subject:`, `is:unread`, `has:attachment` and `after:2026-01-01` narrow it down. Results from the device appear at once; once you pause typing, your own mail server is asked too (IMAP `SEARCH`), so older mail and folders that are not synced (Archive, custom folders) are found, and the hits are stored locally. Nothing goes to the DataFortress backend.
+
+  <p align="center">
+    <img src="screenshots/search.png" alt="On-Device and Server Search" width="750">
+  </p>
+
 - **Your Protection Screen**: Tap the filter card in the sidebar for a full-screen replay of your own spam: what would reach the inbox with no filter, with the on-device filter, and with community fingerprints added, plus what the filter has learned and what Pro adds (encrypted multi-device sync).
+
+  <p align="center">
+    <img src="screenshots/protection-stats.png" alt="Your Protection Replay Screen" width="750">
+  </p>
 - **Privacy-First Architecture**: Aggressive client-side HTML sanitization (strips scripts, forms, and inline styles), remote image blocking by default with per-sender overrides, and hardware-backed credential storage via OS keychains.
 - **Anonymous Collective Defense**: Zero-ID spam and ham reporting using privacy-preserving MinHash LSH fingerprinting and hash proof-of-work—no user identifiers, tokens, or email bodies are ever transmitted.
 - **Open-Core Model**: The client application and core `spam_core` engine are fully open source. Hosted community reputation aggregation and encrypted sync services represent commercial extensions.

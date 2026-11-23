@@ -149,3 +149,7 @@ When developing offline or testing changes across both repositories simultaneous
    flutter run -d android
    flutter run -d ios
    ```
+
+Upon initial launch, DataFortress prompts you to add your IMAP/SMTP mail account:
+
+![Connect Account](../assets/screenshots/connect_account.png)

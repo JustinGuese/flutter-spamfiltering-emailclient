@@ -21,7 +21,7 @@ String formatFullDate(DateTime when) {
   return '${_days[d.weekday - 1]} ${d.day} ${_months[d.month - 1]} ${d.year} · ${_two(d.hour)}:${_two(d.minute)}';
 }
 
-/// "Mara Lindqvist <mara@x.studio>" -> (name: Mara Lindqvist, email: mara@x.studio).
+/// `"Mara Lindqvist <mara@x.studio>"` -> (name: Mara Lindqvist, email: mara@x.studio).
 ({String name, String email}) parseSender(String raw) {
   final m = RegExp(r'^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$').firstMatch(raw);
   if (m != null) {
