@@ -7,19 +7,15 @@ import '../../app/ui_strings.dart';
 import '../../theme/app_type.dart';
 import '../common/app_parts.dart';
 import '../../mail/account_repository.dart';
+import '../../mail/reply_builder.dart';
 import '../../mail/smtp_service.dart';
+import '../../mail/sync_engine.dart';
 
 class ComposeView extends ConsumerStatefulWidget {
-  final String? replyTo;
-  final String? replySubject;
-  final String? replyQuote;
+  /// Prefill for Reply / Reply All / Forward; null opens an empty message.
+  final ComposeDraft? draft;
 
-  const ComposeView({
-    super.key,
-    this.replyTo,
-    this.replySubject,
-    this.replyQuote,
-  });
+  const ComposeView({super.key, this.draft});
 
   @override
   ConsumerState<ComposeView> createState() => _ComposeViewState();
@@ -41,14 +37,16 @@ class _ComposeViewState extends ConsumerState<ComposeView> {
   @override
   void initState() {
     super.initState();
-    if (widget.replyTo != null) _toController.text = widget.replyTo!;
-    if (widget.replySubject != null) {
-      _subjectController.text = widget.replySubject!.startsWith('Re:')
-          ? widget.replySubject!
-          : 'Re: ${widget.replySubject!}';
-    }
-    if (widget.replyQuote != null) {
-      _bodyController.text = '\n\n---\n${widget.replyQuote!}';
+    final draft = widget.draft;
+    if (draft != null) {
+      _selectedAccountId = draft.accountId;
+      _toController.text = draft.to.join(', ');
+      _ccController.text = draft.cc.join(', ');
+      _showCc = draft.cc.isNotEmpty;
+      _subjectController.text = draft.subject;
+      _bodyController.text = draft.body;
+      // Cursor above the quote, where the answer is typed.
+      _bodyController.selection = const TextSelection.collapsed(offset: 0);
     }
 
     _autosaveTimer = Timer.periodic(const Duration(seconds: 30), (_) {
@@ -79,7 +77,8 @@ class _ComposeViewState extends ConsumerState<ComposeView> {
     final accountRepo = ref.watch(accountRepositoryProvider);
     final accounts = accountRepo.listAccounts();
 
-    if (_selectedAccountId == null && accounts.isNotEmpty) {
+    // Also covers a draft whose account has since been removed.
+    if (!accounts.any((a) => a.id == _selectedAccountId) && accounts.isNotEmpty) {
       _selectedAccountId = accounts.first.id;
     }
 
@@ -257,8 +256,11 @@ class _ComposeViewState extends ConsumerState<ComposeView> {
       bcc: _bccController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
       subject: _subjectController.text,
       bodyText: _bodyController.text,
+      inReplyTo: widget.draft?.inReplyTo,
     );
 
+    // Servers that file sent mail themselves: pull it into Sent right away.
+    unawaited(ref.read(syncEngineProvider).syncAccount(account.id).catchError((Object _) {}));
     if (mounted) Navigator.of(context).pop();
   }
 }

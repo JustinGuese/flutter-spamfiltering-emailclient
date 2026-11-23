@@ -84,6 +84,8 @@ class SyncEngine {
         ..sort((a, b) => (b.specialUse == 'inbox' ? 1 : 0) - (a.specialUse == 'inbox' ? 1 : 0));
 
       for (final folder in selectable) {
+        // Aliases of mail that lives elsewhere: never listed, never synced.
+        if (folder.specialUse == 'virtual') continue;
         final folderId = '${account.id}_${folder.serverPath}';
         db.db.execute('''
           INSERT OR REPLACE INTO folders (id, account_id, name, server_path, special_use, unread_count)
@@ -98,9 +100,10 @@ class SyncEngine {
         ]);
         onChanged?.call();
 
-        if (folder.specialUse == 'inbox' || folder.specialUse == null) {
+        final isSent = folder.specialUse == 'sent';
+        if (folder.specialUse == 'inbox' || folder.specialUse == null || isSent) {
           try {
-            await _syncFolderMessages(account.id, folderId, folder.serverPath, junkFolder);
+            await _syncFolderMessages(account.id, folderId, folder.serverPath, junkFolder, classify: !isSent);
           } catch (e, st) {
             // One unreadable folder must not abort the inbox or the rest.
             logError('sync folder ${folder.serverPath}', e, st);
@@ -151,8 +154,11 @@ class SyncEngine {
     String accountId,
     String folderId,
     String serverPath,
-    ImapFolderInfo? junkFolder,
-  ) async {
+    ImapFolderInfo? junkFolder, {
+    // False for Sent: your own outgoing mail is never scored, never moved to
+    // Junk and never trains the filter.
+    bool classify = true,
+  }) async {
     await imap.selectMailbox(serverPath);
     final row = db.db.select(
       'SELECT MAX(uid) as max_uid FROM messages WHERE folder_id = ?',
@@ -175,6 +181,7 @@ class SyncEngine {
       final sender = msg.from?.firstOrNull?.email ?? 'unknown@example.com';
       final senderDomain = sender.contains('@') ? sender.split('@').last : null;
       final recipients = (msg.to?.map((a) => a.email).whereType<String>() ?? const []).join(', ');
+      final ccAddrs = (msg.cc?.map((a) => a.email).whereType<String>() ?? const []).join(', ');
       final date = msg.decodeDate() ?? DateTime.now();
       final rawHtml = msg.decodeTextHtmlPart();
       var snippet = (msg.decodeTextPlainPart() ?? '').trim();
@@ -187,8 +194,8 @@ class SyncEngine {
 
       db.db.execute('''
         INSERT OR REPLACE INTO messages
-        (id, account_id, folder_id, uid, message_id, subject, sender, sender_domain, recipient_addrs, date, snippet, is_read, has_attachments, classification_label, spam_score)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (id, account_id, folder_id, uid, message_id, subject, sender, sender_domain, recipient_addrs, cc_addrs, date, snippet, is_read, has_attachments, classification_label, spam_score)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ''', [
         msgId,
         accountId,
@@ -199,6 +206,7 @@ class SyncEngine {
         sender,
         senderDomain,
         recipients,
+        ccAddrs,
         date.toIso8601String(),
         snippet.length > 160 ? snippet.substring(0, 160) : snippet,
         msg.isSeen ? 1 : 0,
@@ -218,7 +226,7 @@ class SyncEngine {
         sanitized?.hasRemoteImages == true ? 1 : 0,
       ]);
 
-      if (filterService != null) {
+      if (classify && filterService != null) {
         final headersMap = <String, List<String>>{};
         for (final h in msg.headers ?? <Header>[]) {
           final val = h.value;

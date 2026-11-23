@@ -1,9 +1,13 @@
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:df_theme/df_theme.dart';
 import 'package:spam_core/spam_core.dart';
 import '../../db/database.dart';
+import '../../mail/account_repository.dart';
 import '../../mail/html_to_text.dart';
+import '../../mail/reply_builder.dart';
+import '../compose/compose_view.dart';
 import '../../app/strings.dart';
 import '../../filter/filter_service.dart';
 import '../../filter/verdict_controller.dart';
@@ -22,11 +26,29 @@ class ReaderView extends ConsumerStatefulWidget {
   final String? messageId;
   final VoidCallback? onReply;
 
+  /// True when shown by [ReaderView.openFullscreen]: covers the whole window
+  /// and closes back to the mailbox instead of deselecting the message.
+  final bool fullscreen;
+
   const ReaderView({
     super.key,
     required this.messageId,
     this.onReply,
+    this.fullscreen = false,
   });
+
+  /// Opens [messageId] in a route that hides the folder and list panes.
+  static void openFullscreen(BuildContext context, String messageId) {
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      fullscreenDialog: true,
+      builder: (_) => CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.escape): () => Navigator.of(context).maybePop(),
+        },
+        child: Focus(autofocus: true, child: ReaderView(messageId: messageId, fullscreen: true)),
+      ),
+    ));
+  }
 
   @override
   ConsumerState<ReaderView> createState() => _ReaderViewState();
@@ -58,12 +80,12 @@ class _ReaderViewState extends ConsumerState<ReaderView> {
     final date = DateTime.parse(row['date'] as String);
     final currentLabel = Label.values.byName((row['classification_label'] as String?) ?? 'inbox');
     final spamScore = (row['spam_score'] as num?)?.toDouble() ?? 0.0;
-    var bodyText = ((row['text_body'] as String?) ?? '').trim();
-    if (bodyText.isEmpty) {
+    var plainBody = ((row['text_body'] as String?) ?? '').trim();
+    if (plainBody.isEmpty) {
       final html = row['html_body'] as String?;
-      if (html != null && html.isNotEmpty) bodyText = htmlToText(html);
+      if (html != null && html.isNotEmpty) plainBody = htmlToText(html);
     }
-    if (bodyText.isEmpty) bodyText = UiStrings.emptyBody;
+    final bodyText = plainBody.isEmpty ? UiStrings.emptyBody : plainBody;
 
     final showSharingNotice = ref.watch(sharingNoticeVisibleProvider);
 
@@ -98,12 +120,25 @@ class _ReaderViewState extends ConsumerState<ReaderView> {
                 ),
                 child: Row(
                   children: [
-                    if (narrow)
+                    if (widget.fullscreen)
+                      IconButton(
+                        icon: const Icon(Icons.close_fullscreen_rounded),
+                        tooltip: UiStrings.fullscreenExit,
+                        onPressed: () => Navigator.of(context).maybePop(),
+                      )
+                    else if (narrow)
                       IconButton(
                         icon: const Icon(Icons.arrow_back_rounded),
                         onPressed: () => ref.read(selectedMessageIdProvider.notifier).set(null),
                       ),
                     const Spacer(),
+                    // On a narrow window the reader already fills it.
+                    if (!widget.fullscreen && !narrow)
+                      IconButton(
+                        icon: const Icon(Icons.open_in_full_rounded),
+                        tooltip: UiStrings.fullscreenEnter,
+                        onPressed: () => ReaderView.openFullscreen(context, id),
+                      ),
                     VerdictBar(
                       messageId: id,
                       currentLabel: currentLabel,
@@ -135,7 +170,7 @@ class _ReaderViewState extends ConsumerState<ReaderView> {
                   padding: EdgeInsets.fromLTRB(hPad, narrow ? 24 : 36, hPad, 56),
                   child: Center(
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 720),
+                      constraints: BoxConstraints(maxWidth: widget.fullscreen ? 960 : 720),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -179,6 +214,16 @@ class _ReaderViewState extends ConsumerState<ReaderView> {
                             const SizedBox(height: 20),
                             LedgerCard(key: ValueKey(id), verdict: verdict),
                           ],
+                          const SizedBox(height: 20),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _actionButton(Icons.reply_rounded, AppStrings.actionReply, () => _compose(ComposeMode.reply, row, plainBody)),
+                              _actionButton(Icons.reply_all_rounded, AppStrings.actionReplyAll, () => _compose(ComposeMode.replyAll, row, plainBody)),
+                              _actionButton(Icons.forward_rounded, AppStrings.actionForward, () => _compose(ComposeMode.forward, row, plainBody)),
+                            ],
+                          ),
                           SizedBox(height: narrow ? 20 : 24),
                           Divider(height: 1, color: palette.hairline),
                           SizedBox(height: narrow ? 24 : 32),
@@ -208,6 +253,43 @@ class _ReaderViewState extends ConsumerState<ReaderView> {
       ),
     );
   }
+  Widget _actionButton(IconData icon, String label, VoidCallback onPressed) {
+    final palette = context.df.colors;
+    return OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label, style: AppType.ui(palette.textPrimary, size: 13.5, weight: FontWeight.w600)),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: palette.textPrimary,
+        side: BorderSide(color: palette.border),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(context.df.shape.pill)),
+      ),
+    );
+  }
+
+  void _compose(ComposeMode mode, Map<String, Object?> row, String plainBody) {
+    final accounts = ref.read(accountRepositoryProvider).listAccounts();
+    final account = accounts.where((a) => a.id == row['account_id']).firstOrNull;
+    if (account == null) return;
+    List<String> addrs(Object? v) =>
+        ((v as String?) ?? '').split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+
+    final draft = buildDraft(
+      mode: mode,
+      accountId: account.id,
+      accountEmail: account.email,
+      sender: parseSender(row['sender'] as String).email,
+      to: addrs(row['recipient_addrs']),
+      cc: addrs(row['cc_addrs']),
+      subject: row['subject'] as String,
+      dateText: formatFullDate(DateTime.parse(row['date'] as String)),
+      textBody: plainBody,
+      messageId: row['message_id'] as String?,
+    );
+    widget.onReply?.call();
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => ComposeView(draft: draft)));
+  }
+
   void _showLearnMoreDialog(BuildContext context) {
     showDialog(
       context: context,

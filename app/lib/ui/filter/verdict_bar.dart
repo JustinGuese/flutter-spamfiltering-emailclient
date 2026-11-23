@@ -129,7 +129,10 @@ class VerdictBar extends ConsumerWidget {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        duration: const Duration(seconds: 8),
+        // A SnackBar with an action stays on screen until dismissed unless
+        // persist is false; the duration alone is ignored.
+        persist: false,
+        duration: const Duration(milliseconds: 2500),
         content: const Text(
           AppStrings.verdictLearned,
           style: TextStyle(fontFamily: 'Public Sans'),

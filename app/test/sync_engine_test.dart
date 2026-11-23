@@ -36,6 +36,7 @@ class _FakeImap extends ImapService {
   int? newerThan;
   var disconnected = false;
   final List<MimeMessage> inbox;
+  List<ImapFolderInfo>? folders;
   _FakeImap(this.inbox);
 
   @override
@@ -45,7 +46,7 @@ class _FakeImap extends ImapService {
   }
 
   @override
-  Future<List<ImapFolderInfo>> listSpecialUseFolders() async => const [
+  Future<List<ImapFolderInfo>> listSpecialUseFolders() async => folders ?? const [
         ImapFolderInfo(name: '[Gmail]', serverPath: '[Gmail]', selectable: false),
         ImapFolderInfo(name: 'INBOX', serverPath: 'INBOX', specialUse: 'inbox'),
         ImapFolderInfo(name: 'All Mail', serverPath: '[Gmail]/All Mail', specialUse: 'virtual'),
@@ -104,6 +105,36 @@ void main() {
     expect(uids, [9001, 9002, 9003]);
     final folders = db.db.select('SELECT name FROM folders').map((r) => r['name']).toList();
     expect(folders, isNot(contains('[Gmail]')));
+  });
+
+  test('Sent is listed and its mail stored, but never classified or moved to Junk', () async {
+    final sentImap = _FakeImap([_msg(7001, 1)])
+      ..folders = const [
+        ImapFolderInfo(name: 'Sent Mail', serverPath: '[Gmail]/Sent Mail', specialUse: 'sent'),
+        ImapFolderInfo(name: 'All Mail', serverPath: '[Gmail]/All Mail', specialUse: 'virtual'),
+      ];
+    await SyncEngine(db: db, accountRepo: repo, imap: sentImap).syncAccount('a1');
+
+    expect(sentImap.selected, ['[Gmail]/Sent Mail']);
+    final folders = db.db.select('SELECT name FROM folders').map((r) => r['name']).toList();
+    expect(folders, ['Sent Mail'], reason: 'virtual folders are not listed');
+    expect(db.db.select('SELECT uid FROM messages').map((r) => r['uid']).toList(), [7001]);
+  });
+
+  test('Cc addresses are stored for Reply All', () async {
+    final m = _msg(8001, 1)..addHeader('Cc', 'carol@x.com, dave@x.com');
+    await SyncEngine(db: db, accountRepo: repo, imap: _FakeImap([m])).syncAccount('a1');
+    final cc = db.db.select('SELECT cc_addrs FROM messages').first['cc_addrs'];
+    expect(cc, contains('carol@x.com'));
+    expect(cc, contains('dave@x.com'));
+  });
+
+  test('an existing messages table without cc_addrs is migrated', () {
+    final old = sqlite3.openInMemory()
+      ..execute('CREATE TABLE messages (id TEXT PRIMARY KEY, recipient_addrs TEXT NOT NULL)')
+      ..execute("INSERT INTO messages VALUES ('m1', 'x@y.z')");
+    final migrated = AppDatabase(old);
+    expect(migrated.db.select('SELECT cc_addrs FROM messages').first['cc_addrs'], '');
   });
 
   test('later syncs ask only for UIDs above the highest stored one', () async {

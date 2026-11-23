@@ -54,6 +54,7 @@ class AppDatabase {
         sender TEXT NOT NULL,
         sender_domain TEXT,
         recipient_addrs TEXT NOT NULL,
+        cc_addrs TEXT NOT NULL DEFAULT '',
         date TEXT NOT NULL,
         snippet TEXT NOT NULL,
         is_read INTEGER NOT NULL DEFAULT 0,
@@ -112,6 +113,17 @@ class AppDatabase {
         target_folder TEXT
       );
     ''');
+    _migrate();
+  }
+
+  /// There is no schema version: each step checks the live table and adds only
+  /// what is missing, so it is safe on fresh and existing databases alike.
+  void _migrate() {
+    final messageCols = db.select('PRAGMA table_info(messages)').map((r) => r['name']).toSet();
+    if (!messageCols.contains('cc_addrs')) {
+      // Mail synced before this column existed keeps '' until it is re-fetched.
+      db.execute("ALTER TABLE messages ADD COLUMN cc_addrs TEXT NOT NULL DEFAULT ''");
+    }
   }
 
   void close() => db.close();

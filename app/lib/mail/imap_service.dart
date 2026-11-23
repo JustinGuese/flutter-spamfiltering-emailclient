@@ -67,7 +67,9 @@ class ImapService {
   }
 
   Future<List<ImapFolderInfo>> listSpecialUseFolders() async {
-    final mailboxes = await client.listMailboxes();
+    // Recursive: Sent, Drafts, Trash and Spam live under "[Gmail]/" (and
+    // "INBOX." on some servers); a top-level-only LIST never returns them.
+    final mailboxes = await client.listMailboxes(recursive: true);
     final result = <ImapFolderInfo>[];
     for (final box in mailboxes) {
       String? specialUse;

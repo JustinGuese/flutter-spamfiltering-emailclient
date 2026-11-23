@@ -36,7 +36,10 @@ abstract final class UiStrings {
   static const signalHam = 'Your history';
   static const signalAi = 'On-device model';
 
-  static const emptyBody = '(This message has no text content.)';
+  static const fullscreenEnter = 'Full screen';
+  static const fullscreenExit = 'Exit full screen (Esc)';
+
+  static const emptyBody ='(This message has no text content.)';
   static const emptyReaderTitle = 'Nothing selected.';
   static const emptyReaderBody = 'Pick a message, or let the keyboard drive.';
   static const keyNext = 'next / previous';

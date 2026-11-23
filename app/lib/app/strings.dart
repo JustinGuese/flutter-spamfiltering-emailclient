@@ -55,6 +55,9 @@ class AppStrings {
   static const actionReply = 'Reply';
   static const actionReplyAll = 'Reply All';
   static const actionForward = 'Forward';
+  // Text written into the body of a reply / forward ({placeholders} are filled by the draft builder).
+  static const replyAttribution = 'On {date}, {sender} wrote:';
+  static const forwardDivider = '---------- Forwarded message ----------';
   static const actionDelete = 'Delete';
   static const actionArchive = 'Archive';
   static const noMessageSelected = 'Select a message to read';

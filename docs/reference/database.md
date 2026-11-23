@@ -57,7 +57,8 @@ Synchronized email message envelopes and classification metadata.
 | `subject` | `TextColumn` | | Message subject line. |
 | `sender` | `TextColumn` | | Full `From` header string (`Name <user@domain>`). |
 | `senderDomain` | `TextColumn` | `nullable` | Extracted sender domain. |
-| `recipientAddrs`| `TextColumn` | | Comma-separated recipient email addresses. |
+| `recipientAddrs`| `TextColumn` | | Comma-separated `To` addresses (bare emails). `Cc` is kept separately in `ccAddrs`. |
+| `ccAddrs` | `TextColumn` | `default: ''` | Comma-separated `Cc` addresses, used by Reply All. Added by `AppDatabase._migrate()`; mail synced before it existed keeps `''` until re-fetched. It is in `database.dart` only, not in `tables.dart`. |
 | `date` | `DateTimeColumn` | | Message origination timestamp. |
 | `snippet` | `TextColumn` | | Cleaned text preview snippet. |
 | `isRead` | `BoolColumn` | `default: false` | Message read flag (`\Seen`). |
@@ -162,7 +163,7 @@ Queue of IMAP changes (for example a message moved after a verdict) that still h
 ## Schema Management
 
 - Database operations go through `AppDatabase` (`app/lib/db/database.dart`); the UI and services run SQL on `db.db` directly.
-- Tables are created with `CREATE TABLE IF NOT EXISTS` on every start. There is no schema version and no migration step, so changing an existing table needs an explicit migration.
+- Tables are created with `CREATE TABLE IF NOT EXISTS` on every start. There is no schema version. `AppDatabase._migrate()` runs after table creation and adds missing columns one at a time (it checks `PRAGMA table_info` first, so it is safe on fresh and existing databases); currently it adds `messages.cc_addrs`. Any further change to an existing table needs a step there.
 - Bayesian counts implement the `TokenStore` interface via `TokenStoreDrift` (`app/lib/filter/token_store_drift.dart`).
 - Password credentials are **never** stored in the SQLite database; they are stored in the OS platform keychain/secret storage (`libsecret` on Linux, Keychain on macOS/iOS, DPAPI/Credential Manager on Windows, EncryptedSharedPreferences on Android).
 

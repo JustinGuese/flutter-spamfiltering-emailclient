@@ -52,6 +52,9 @@ The suite in `app/test/` covers:
   - Account deletion purges associated folders and cached messages while preserving other accounts.
   - Concurrent sync calls for the same account coalesce into a single connection.
   - Unresponsive IMAP servers time out instead of hanging indefinitely.
+  - The Sent folder is listed and synced without classification; virtual folders are not listed.
+  - `Cc` addresses are stored, and an existing `messages` table without `cc_addrs` is migrated.
+- **`reply_builder_test.dart`**: Reply, Reply All and Forward drafts: recipients (own address and duplicates removed, replies to your own mail go to its recipients), `Re:`/`Fwd:` subjects that never stack, quoting, and HTML-escaping of quoted text in the outgoing HTML part.
 - **`verdict_bar_test.dart`**: Validates the three-way `VerdictBar` UI widget (Inbox, Newsletter, Spam), checking tactile state changes and accessibility semantics labels.
 
 ---

@@ -148,5 +148,6 @@ sequenceDiagram
    The classification label (`spam`, `ham`, `newsletter`, `inbox`), spam probability score, and structured evidence list are stored in the `classifications` table.
    - If `spamScore >= 0.90`: The message is marked as spam on the IMAP server via `ImapFlagsManager.markSpam` and moved to the server's Junk folder.
    - If `0.60 <= spamScore < 0.90`: The message is tagged as spam in the local database and highlighted in the unsure band for review.
+   Messages in the **Sent** folder are stored but skipped by this step entirely: they are never scored, never moved to Junk, and never train the filter. Servers that nest folders (Gmail's `[Gmail]/Sent Mail`) are covered by a recursive `LIST`; virtual folders such as Gmail's All Mail are neither listed nor synced.
 6. **Reactive UI Update**:
    `MailRevisionNotifier` triggers reactive Riverpod streams, rendering the updated message in the user's inbox, newsletter tab, or junk folder.

@@ -1,8 +1,14 @@
+import 'dart:convert';
 import 'package:enough_mail/enough_mail.dart';
 import 'mail_auth.dart';
 import 'account_repository.dart';
 import 'imap_service.dart';
 import '../app/log.dart';
+
+/// Escaped, line-break-preserving HTML twin of a plain-text body. Quoted text
+/// from received mail ends up in here, so it must never be passed through raw.
+String textToHtml(String text) =>
+    '<div style="white-space:pre-wrap">${const HtmlEscape(HtmlEscapeMode.element).convert(text)}</div>';
 
 class SmtpService {
   final SmtpClient client;
@@ -19,6 +25,7 @@ class SmtpService {
     required String subject,
     required String bodyText,
     String? bodyHtml,
+    String? inReplyTo,
     ImapService? imapForSentAppend,
     String? sentFolderPath,
   }) async {
@@ -40,13 +47,19 @@ class SmtpService {
 
     final builder = MessageBuilder.prepareMultipartAlternativeMessage(
       plainText: bodyText,
-      htmlText: bodyHtml ?? '<p>$bodyText</p>',
+      htmlText: bodyHtml ?? textToHtml(bodyText),
     )
       ..from = [MailAddress(account.displayName, account.email)]
       ..to = to.map((e) => MailAddress('', e.trim())).toList()
       ..cc = cc.map((e) => MailAddress('', e.trim())).toList()
       ..bcc = bcc.map((e) => MailAddress('', e.trim())).toList()
       ..subject = subject;
+    if (inReplyTo != null && inReplyTo.isNotEmpty) {
+      // Lets the recipient's client thread the reply under the original.
+      builder
+        ..setHeader('In-Reply-To', inReplyTo)
+        ..setHeader('References', inReplyTo);
+    }
 
     final mimeMessage = builder.buildMimeMessage();
     await client.sendMessage(mimeMessage);
