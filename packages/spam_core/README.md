@@ -28,7 +28,7 @@ Or when consuming via Git:
 dependencies:
   spam_core:
     git:
-      url: https://github.com/JustinGuese/datafortress.git
+      url: https://github.com/JustinGuese/flutter-spamfiltering-emailclient.git
       path: packages/spam_core
 ```
 

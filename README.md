@@ -21,8 +21,8 @@ DataFortress is a privacy-first, editorial desktop and mobile email client engin
 ## Quickstart
 
 ```bash
-git clone https://github.com/JustinGuese/datafortress.git
-cd datafortress/app
+git clone https://github.com/JustinGuese/flutter-spamfiltering-emailclient.git
+cd flutter-spamfiltering-emailclient/app
 flutter pub get
 flutter run
 ```

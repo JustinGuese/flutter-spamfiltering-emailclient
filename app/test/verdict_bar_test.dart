@@ -2,9 +2,9 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spam_core/spam_core.dart';
-import 'package:data_fortress_mail/ui/filter/verdict_bar.dart';
-import 'package:data_fortress_mail/app/strings.dart';
-import 'package:data_fortress_mail/db/database.dart';
+import 'package:spamfiltering_emailclient/ui/filter/verdict_bar.dart';
+import 'package:spamfiltering_emailclient/app/strings.dart';
+import 'package:spamfiltering_emailclient/db/database.dart';
 
 void main() {
   testWidgets('VerdictBar exposes Semantics labels for all three classes', (tester) async {

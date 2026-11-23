@@ -1,4 +1,4 @@
-name: data_fortress_mail
+name: spamfiltering_emailclient
 description: "DataFortress Mail — Privacy-first email client with on-device learning spam filter."
 publish_to: 'none'
 

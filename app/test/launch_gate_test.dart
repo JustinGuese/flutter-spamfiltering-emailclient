@@ -1,9 +1,9 @@
-import 'package:data_fortress_mail/app/ui_strings.dart';
-import 'package:data_fortress_mail/db/database.dart';
-import 'package:data_fortress_mail/funnel/launch_gate.dart';
-import 'package:data_fortress_mail/theme/app_brand.dart';
-import 'package:data_fortress_mail/ui/account_setup/account_setup_view.dart';
-import 'package:data_fortress_mail/ui/shell/nav_shell.dart';
+import 'package:spamfiltering_emailclient/app/ui_strings.dart';
+import 'package:spamfiltering_emailclient/db/database.dart';
+import 'package:spamfiltering_emailclient/funnel/launch_gate.dart';
+import 'package:spamfiltering_emailclient/theme/app_brand.dart';
+import 'package:spamfiltering_emailclient/ui/account_setup/account_setup_view.dart';
+import 'package:spamfiltering_emailclient/ui/shell/nav_shell.dart';
 import 'package:df_theme/df_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';

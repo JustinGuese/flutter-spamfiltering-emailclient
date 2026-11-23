@@ -12,15 +12,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 
-import 'package:data_fortress_mail/db/database.dart';
-import 'package:data_fortress_mail/platform/platform_services.dart';
-import 'package:data_fortress_mail/theme/app_brand.dart';
-import 'package:data_fortress_mail/ui/account_setup/account_setup_view.dart';
-import 'package:data_fortress_mail/ui/compose/compose_view.dart';
-import 'package:data_fortress_mail/ui/onboarding/onboarding_view.dart';
-import 'package:data_fortress_mail/ui/premium/upsell_sheet.dart';
-import 'package:data_fortress_mail/ui/settings/settings_view.dart';
-import 'package:data_fortress_mail/ui/shell/nav_shell.dart';
+import 'package:spamfiltering_emailclient/db/database.dart';
+import 'package:spamfiltering_emailclient/platform/platform_services.dart';
+import 'package:spamfiltering_emailclient/theme/app_brand.dart';
+import 'package:spamfiltering_emailclient/ui/account_setup/account_setup_view.dart';
+import 'package:spamfiltering_emailclient/ui/compose/compose_view.dart';
+import 'package:spamfiltering_emailclient/ui/onboarding/onboarding_view.dart';
+import 'package:spamfiltering_emailclient/ui/premium/upsell_sheet.dart';
+import 'package:spamfiltering_emailclient/ui/settings/settings_view.dart';
+import 'package:spamfiltering_emailclient/ui/shell/nav_shell.dart';
 
 final String outDir = Platform.environment['PREVIEW_OUT'] ?? '/tmp/preview';
 

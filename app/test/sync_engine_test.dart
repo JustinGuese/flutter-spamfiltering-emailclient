@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:sqlite3/sqlite3.dart';
-import 'package:data_fortress_mail/db/database.dart';
-import 'package:data_fortress_mail/mail/account_repository.dart';
-import 'package:data_fortress_mail/mail/imap_service.dart';
-import 'package:data_fortress_mail/mail/mail_auth.dart';
-import 'package:data_fortress_mail/mail/sync_engine.dart';
+import 'package:spamfiltering_emailclient/db/database.dart';
+import 'package:spamfiltering_emailclient/mail/account_repository.dart';
+import 'package:spamfiltering_emailclient/mail/imap_service.dart';
+import 'package:spamfiltering_emailclient/mail/mail_auth.dart';
+import 'package:spamfiltering_emailclient/mail/sync_engine.dart';
 import 'package:enough_mail/enough_mail.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';

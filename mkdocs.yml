@@ -1,8 +1,8 @@
 site_name: DataFortress
 site_description: Documentation for DataFortress Mail and spam_core.
-site_url: https://example.github.io/datafortress
-repo_url: https://github.com/example/datafortress
-repo_name: example/datafortress
+site_url: https://justinguese.github.io/flutter-spamfiltering-emailclient
+repo_url: https://github.com/JustinGuese/flutter-spamfiltering-emailclient
+repo_name: JustinGuese/flutter-spamfiltering-emailclient
 
 theme:
   name: material

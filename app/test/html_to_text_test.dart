@@ -1,4 +1,4 @@
-import 'package:data_fortress_mail/mail/html_to_text.dart';
+import 'package:spamfiltering_emailclient/mail/html_to_text.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
