@@ -1,0 +1,19 @@
+# secrets / local
+.env.secret
+**/.env.secret
+pubspec_overrides.yaml
+**/pubspec_overrides.yaml
+.claude/
+# python
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+
+# flutter / dart
+.dart_tool/
+build/
+.flutter-plugins*
+*.iml
+.idea/
+site/

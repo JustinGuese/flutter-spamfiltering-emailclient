@@ -1,0 +1,82 @@
+import 'package:data_fortress_mail/app/ui_strings.dart';
+import 'package:data_fortress_mail/db/database.dart';
+import 'package:data_fortress_mail/funnel/launch_gate.dart';
+import 'package:data_fortress_mail/theme/app_brand.dart';
+import 'package:data_fortress_mail/ui/account_setup/account_setup_view.dart';
+import 'package:data_fortress_mail/ui/shell/nav_shell.dart';
+import 'package:df_theme/df_theme.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+void main() {
+  // Load the bundled fonts; the default test font is far wider and overflows.
+  setUpAll(() async {
+    for (final f in {
+      'Fraunces': 'assets/fonts/Fraunces.ttf',
+      'Public Sans': 'assets/fonts/PublicSans.ttf',
+      'JetBrains Mono': 'assets/fonts/JetBrainsMono.ttf',
+    }.entries) {
+      final loader = FontLoader(f.key)..addFont(rootBundle.load(f.value));
+      await loader.load();
+    }
+  });
+
+  Future<void> pumpGate(
+    WidgetTester tester,
+    Map<String, Object> prefs, {
+    bool withAccount = false,
+  }) async {
+    SharedPreferences.setMockInitialValues(prefs);
+    tester.view.physicalSize = const Size(1440, 900) * 1.5;
+    tester.view.devicePixelRatio = 1.5;
+    addTearDown(tester.view.reset);
+    final db = await AppDatabase.open(inMemory: true);
+    if (withAccount) {
+      db.db.execute(
+        'INSERT INTO accounts (id, email, display_name, imap_host, imap_port, '
+        'smtp_host, smtp_port, auth_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        ['acc_1', 'a@b.c', 'A', 'imap.b.c', 993, 'smtp.b.c', 587, 'password', DateTime.now().toIso8601String()],
+      );
+    }
+    await tester.pumpWidget(ProviderScope(
+      overrides: [databaseProvider.overrideWithValue(db)],
+      child: MaterialApp(
+        theme: DfTheme.light(AppBrand.brand),
+        home: const AppLaunchGate(child: AppNavShell()),
+      ),
+    ));
+    await tester.pump(const Duration(milliseconds: 600));
+  }
+
+  const done = {'flutter.df_funnel_onboarding_completed': true};
+
+  testWidgets('paywall "Maybe later" opens Add Account when no account exists', (tester) async {
+    await pumpGate(tester, done);
+
+    // Paywall step (own Scaffold, not an unthemed page), explains Pro.
+    expect(find.text('Maybe later'), findsOneWidget);
+    expect(find.text(UiStrings.upsellPoint1), findsOneWidget);
+    await tester.tap(find.text('Maybe later'));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 600));
+    }
+
+    // No login placeholder; straight to account setup, on top of the shell.
+    expect(find.text('Skip for now'), findsNothing);
+    expect(find.byType(AccountSetupView), findsOneWidget);
+    expect(find.byType(AppNavShell, skipOffstage: false), findsOneWidget);
+  });
+
+  testWidgets('with an account, "Maybe later" goes straight to the app', (tester) async {
+    await pumpGate(tester, done, withAccount: true);
+    await tester.tap(find.text('Maybe later'));
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(find.byType(AccountSetupView), findsNothing);
+    expect(find.byType(AppNavShell), findsOneWidget);
+  });
+}

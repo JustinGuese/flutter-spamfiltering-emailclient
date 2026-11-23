@@ -1,0 +1,13 @@
+name: spam_core
+description: Pure Dart spam filter engine (Bayes, heuristics, fingerprints, tokenizer)
+version: 0.1.0
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  crypto: ^3.0.3
+
+dev_dependencies:
+  test: ^1.24.0
+  lints: ^3.0.0

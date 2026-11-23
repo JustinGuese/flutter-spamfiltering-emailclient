@@ -1,0 +1,154 @@
+name: data_fortress_mail
+description: "DataFortress Mail — Privacy-first email client with on-device learning spam filter."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^2.0.0
+  flutter_riverpod: ^3.0.3
+  dio: ^5.7.0
+  drift: ^2.20.0
+  sqlite3: ^3.0.0
+  sqlite3_flutter_libs: ^0.6.0+eol
+  path_provider: ^2.1.4
+  path: ^1.9.0
+  flutter_secure_storage: ^11.2.0
+  enough_mail: ^3.0.0
+  intl: ^0.20.2
+  crypto: ^3.0.5
+  pointycastle: ^4.0.0
+
+  spam_core:
+    path: ../packages/spam_core
+
+  df_theme:
+    git:
+      url: https://github.com/JustinGuese/df_flutter_shared.git
+      path: df_theme
+      ref: main
+  df_ui_widgets:
+    git:
+      url: https://github.com/JustinGuese/df_flutter_shared.git
+      path: df_ui_widgets
+      ref: main
+  df_onboarding:
+    git:
+      url: https://github.com/JustinGuese/df_flutter_shared.git
+      path: df_onboarding
+      ref: main
+  df_funnel:
+    git:
+      url: https://github.com/JustinGuese/df_flutter_shared.git
+      path: df_funnel
+      ref: main
+  df_settings:
+    git:
+      url: https://github.com/JustinGuese/df_flutter_shared.git
+      path: df_settings
+      ref: main
+  df_billing:
+    git:
+      url: https://github.com/JustinGuese/df_flutter_shared.git
+      path: df_billing
+      ref: main
+  df_revenuecat:
+    git:
+      url: https://github.com/JustinGuese/df_flutter_shared.git
+      path: df_revenuecat
+      ref: main
+  df_firebase_auth:
+    git:
+      url: https://github.com/JustinGuese/df_flutter_shared.git
+      path: df_firebase_auth
+      ref: main
+  df_firebase_rest:
+    git:
+      url: https://github.com/JustinGuese/df_flutter_shared.git
+      path: df_firebase_rest
+      ref: main
+  df_error_reporting:
+    git:
+      url: https://github.com/JustinGuese/df_flutter_shared.git
+      path: df_error_reporting
+      ref: main
+  df_analytics:
+    git:
+      url: https://github.com/JustinGuese/df_flutter_shared.git
+      path: df_analytics
+      ref: main
+  df_app_shell:
+    git:
+      url: https://github.com/JustinGuese/df_flutter_shared.git
+      path: df_app_shell
+      ref: main
+  df_file_download:
+    git:
+      url: https://github.com/JustinGuese/df_flutter_shared.git
+      path: df_file_download
+      ref: main
+  df_api:
+    git:
+      url: https://github.com/JustinGuese/df_flutter_shared.git
+      path: df_api
+      ref: main
+
+  material_ui: any
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+  shared_preferences: any
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.8
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/fonts/
+    - assets/prior_model.json
+    - assets/icon/icon_rounded.png
+
+  fonts:
+    - family: Fraunces
+      fonts:
+        - asset: assets/fonts/Fraunces.ttf
+    - family: Public Sans
+      fonts:
+        - asset: assets/fonts/PublicSans.ttf
+    - family: JetBrains Mono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono.ttf
+
+# Regenerate icons: dart run flutter_launcher_icons
+# Regenerate splash: dart run flutter_native_splash:create
+# Sources live in assets/icon/ (derived from the master logo.png).
+flutter_launcher_icons:
+  image_path: assets/icon/icon_rounded.png
+  android: true
+  ios: true
+  image_path_ios: assets/icon/icon_square.png
+  remove_alpha_ios: true
+  adaptive_icon_background: "#247DCE"
+  adaptive_icon_foreground: assets/icon/icon_adaptive.png
+  windows:
+    generate: true
+    image_path: assets/icon/icon_rounded.png
+    icon_size: 256
+  macos:
+    generate: true
+    image_path: assets/icon/icon_rounded.png
+
+flutter_native_splash:
+  color: "#115EA6"
+  image: assets/icon/icon_rounded.png
+  android_12:
+    color: "#247DCE"
+    image: assets/icon/icon_adaptive.png
+  fullscreen: false

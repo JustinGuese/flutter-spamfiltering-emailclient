@@ -1,0 +1,33 @@
+/* Ledger Desk Palette */
+:root {
+  --md-primary-fg-color:        #A8781F; /* brass */
+  --md-primary-fg-color--light: #C4973B;
+  --md-primary-fg-color--dark:  #8C6215;
+  --md-accent-fg-color:         #2F6F6B; /* verdigris */
+  --md-accent-fg-color--transparent: rgba(47, 111, 107, 0.1);
+}
+
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color:        #A8781F;
+  --md-primary-fg-color--light: #C4973B;
+  --md-primary-fg-color--dark:  #8C6215;
+  --md-accent-fg-color:         #2F6F6B;
+  --md-typeset-a-color:         #2F6F6B;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color:        #A8781F;
+  --md-primary-fg-color--light: #C4973B;
+  --md-primary-fg-color--dark:  #8C6215;
+  --md-accent-fg-color:         #2F6F6B;
+  --md-typeset-a-color:         #4EA39F;
+}
+
+/* Font stacks for font: false (privacy stance: no remote Google Fonts call) */
+body, input {
+  font-family: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+code, kbd, pre {
+  font-family: "JetBrains Mono", SFMono-Regular, Consolas, Menlo, Monaco, monospace;
+}

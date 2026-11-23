@@ -1,0 +1,39 @@
+DataFortress
+Copyright 2026 Justin Guese
+
+This product includes software developed by Justin Guese.
+
+========================================================================
+Trademark Notice
+========================================================================
+
+The "DataFortress" name, logo (`logo.png`), and application icons
+(`app/assets/icon/*`) are proprietary and are NOT licensed under the
+Apache License, Version 2.0. They may not be used to endorse or promote
+products derived from this software without prior written permission.
+
+========================================================================
+Bundled Third-Party Software and Fonts
+========================================================================
+
+This product bundles the following third-party fonts and components:
+
+1. Fraunces Font
+   Copyright 2020 The Fraunces Project Authors (https://github.com/undercasetype/Fraunces)
+   Licensed under the SIL Open Font License, Version 1.1 (OFL-1.1).
+   https://scripts.sil.org/OFL
+
+2. Public Sans Font
+   Copyright 2015 The Public Sans Project Authors (https://github.com/uswds/public-sans)
+   Licensed under the SIL Open Font License, Version 1.1 (OFL-1.1).
+   https://scripts.sil.org/OFL
+
+3. JetBrains Mono Font
+   Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)
+   Licensed under the SIL Open Font License, Version 1.1 (OFL-1.1).
+   https://scripts.sil.org/OFL
+
+4. enough_mail
+   Copyright (c) enough GmbH
+   Licensed under the Mozilla Public License, Version 2.0 (MPL-2.0).
+   https://www.mozilla.org/en-US/MPL/2.0/

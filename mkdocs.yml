@@ -1,0 +1,72 @@
+site_name: DataFortress
+site_description: Documentation for DataFortress Mail and spam_core.
+site_url: https://example.github.io/datafortress
+repo_url: https://github.com/example/datafortress
+repo_name: example/datafortress
+
+theme:
+  name: material
+  font: false
+  logo: assets/logo.png
+  favicon: assets/favicon.png
+  palette:
+    # Palette toggle for light mode
+    - scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - search.suggest
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - toc:
+      permalink: true
+
+strict: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/install.md
+      - Configuration: getting-started/configuration.md
+      - Testing: getting-started/testing.md
+  - Concepts:
+      - Architecture: concepts/architecture.md
+      - Spam Filter: concepts/spam-filter.md
+      - Privacy Model: concepts/privacy-model.md
+      - Community Sharing: concepts/community-sharing.md
+      - Premium: concepts/premium.md
+      - Privacy Specification: concepts/privacy-spec.md
+  - Reference:
+      - spam_core API: reference/spam-core-api.md
+      - Backend Protocol: reference/backend-protocol.md
+      - Database: reference/database.md
+      - Project Layout: reference/project-layout.md
+      - Train Prior: reference/train-prior.md
+  - Contributing:
+      - Overview: contributing/index.md
+      - Design System: contributing/design-system.md
+      - Platform Notes: contributing/platform-notes.md
+  - Open Source: open-source.md
