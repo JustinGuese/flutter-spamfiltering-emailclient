@@ -1,13 +1,27 @@
 name: Build & Release
 
-# PRs: fast checks only (analyze + tests). Full 5-platform builds run on main and
-# on v* tags; a v* tag also publishes a GitHub Release with every platform's build.
+# PRs & main: fast checks only (analyze + tests). Full 5-platform builds
+# and GitHub Release run ONLY on v* tags.
 on:
   push:
     branches: [ main ]
     tags: [ 'v*' ]
+    paths-ignore:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - 'requirements-docs.txt'
+      - 'README.md'
+      - 'screenshots/**'
+      - '.github/workflows/docs.yml'
   pull_request:
     branches: [ main ]
+    paths-ignore:
+      - 'docs/**'
+      - 'mkdocs.yml'
+      - 'requirements-docs.txt'
+      - 'README.md'
+      - 'screenshots/**'
+      - '.github/workflows/docs.yml'
   workflow_dispatch:
 
 permissions:
@@ -49,10 +63,10 @@ jobs:
         flutter analyze
         flutter test
 
-  # 2. Parallel matrix build across all 5 platforms (main + tags only)
+  # 2. Parallel matrix build across all 5 platforms (tags only)
   build:
     name: Build ${{ matrix.target }}
-    if: github.event_name != 'pull_request'
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: analyze-and-test
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
@@ -93,6 +107,55 @@ jobs:
       with:
         distribution: temurin
         java-version: '17'
+        cache: 'gradle'
+
+    - name: Configure Gradle mirror
+      if: matrix.target == 'android'
+      run: |
+        mkdir -p ~/.gradle/init.d
+        cat << 'EOF' > ~/.gradle/init.d/mirror.gradle
+        def mirrorUrl = uri("https://maven-central.storage-download.googleapis.com/maven2/")
+        gradle.beforeSettings { settings ->
+            settings.pluginManagement.repositories.all { repo ->
+                if (repo instanceof MavenArtifactRepository) {
+                    def u = repo.url.toString()
+                    if (u.contains("repo.maven.apache.org") || u.contains("repo1.maven.org")) {
+                        repo.url = mirrorUrl
+                    }
+                }
+            }
+            try {
+                settings.dependencyResolutionManagement.repositories.all { repo ->
+                    if (repo instanceof MavenArtifactRepository) {
+                        def u = repo.url.toString()
+                        if (u.contains("repo.maven.apache.org") || u.contains("repo1.maven.org")) {
+                            repo.url = mirrorUrl
+                        }
+                    }
+                }
+            } catch (Throwable ignored) {}
+        }
+        allprojects {
+            buildscript {
+                repositories.all { repo ->
+                    if (repo instanceof MavenArtifactRepository) {
+                        def u = repo.url.toString()
+                        if (u.contains("repo.maven.apache.org") || u.contains("repo1.maven.org")) {
+                            repo.url = mirrorUrl
+                        }
+                    }
+                }
+            }
+            repositories.all { repo ->
+                if (repo instanceof MavenArtifactRepository) {
+                    def u = repo.url.toString()
+                    if (u.contains("repo.maven.apache.org") || u.contains("repo1.maven.org")) {
+                        repo.url = mirrorUrl
+                    }
+                }
+            }
+        }
+        EOF
 
     # Linux desktop needs GTK/Ninja; flutter_secure_storage needs libsecret
     - name: Install Linux dependencies
