@@ -101,7 +101,7 @@ The filter continuously adapts to user preferences through explicit interaction:
 ```mermaid
 flowchart TD
     User["User changes classification<br/>(e.g., Mark as Spam)"] --> VC["VerdictController"]
-    VC --> DB["Drift Database"]
+    VC --> DB["SQLite Database"]
     DB --> TS["TokenStoreDrift: increment/decrement token counts"]
     VC --> IMAP["ImapService: set IMAP flags & move server folder"]
     VC --> Undo["Active UndoRecord (5-second grace window)"]

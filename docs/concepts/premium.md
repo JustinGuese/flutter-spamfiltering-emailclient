@@ -83,7 +83,7 @@ classDiagram
 
 ### Sync Protocol (`app/lib/premium/filter_sync.dart`)
 1. **Debounced Trigger**: When the user reclassifies messages, `VerdictController` schedules an encrypted state upload with a 1-minute debounce timer.
-2. **Device State Upload**: The client serializes its local `CrdtTokenState`, encrypts it with the local 256-bit key, and uploads the ciphertext to `POST /v1/sync/blobs/<deviceSlot>`.
+2. **Device State Upload**: The client serializes its local `CrdtTokenState`, encrypts it with the local 256-bit key, and uploads the ciphertext to `PUT /v1/sync/blobs/<deviceSlot>`.
 3. **Multi-Device Pull**: The client queries `GET /v1/sync/blobs/<slot>` for all other registered device slots, decrypts the ciphertext payloads using the shared sync key, and applies the remote CRDT state to the local `TokenStoreDrift`.
 
 ---

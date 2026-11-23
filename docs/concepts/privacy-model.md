@@ -64,7 +64,7 @@ Email accounts require storing access credentials (either plain IMAP/SMTP passwo
 graph LR
     subgraph Client ["DataFortress Client"]
         Repo["AccountRepository<br/>(app/lib/mail)"]
-        SQLite["Drift SQLite Database<br/>(Host, port, email, metadata)"]
+        SQLite["SQLite Database<br/>(Host, port, email, metadata)"]
     end
 
     subgraph SecureKeyring ["Platform Secure Keystore (FlutterSecureStorage)"]

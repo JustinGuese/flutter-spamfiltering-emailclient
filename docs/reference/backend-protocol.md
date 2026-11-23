@@ -105,7 +105,7 @@ Downloads the complete active blocklist dataset. Invoked on first launch or when
 Entries can be structured objects (`{"id": string, "type": string, "hash": int}`) or raw integer hash values.
 
 #### Database Persistence
-Stored in the local Drift SQLite table `blocklist_entries`. Version is saved to `settings` under key `blocklist_version`.
+Stored in the local SQLite table `blocklist_entries`. Version is saved to `settings` under key `blocklist_version`.
 
 ---
 

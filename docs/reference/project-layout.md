@@ -32,13 +32,13 @@ The client email application built with Flutter and Riverpod.
 | Directory / File | Description |
 |---|---|
 | `lib/api/api_client.dart` | Authenticated Dio HTTP provider injecting Firebase ID tokens for hosted services. |
-| `lib/app/` | Application root lifecycle: `app.dart`, `bootstrap.dart`, `router.dart`, `window_frame.dart`, `log.dart`. |
+| `lib/app/` | Application root lifecycle: `app.dart`, `bootstrap.dart`, `router.dart`, `log.dart`, plus the user-facing string tables `strings.dart` and `ui_strings.dart`. |
 | `lib/community/` | Anonymous community reporting: `report_client.dart`, `blocklist_sync.dart`, `pow.dart` (proof of work), `app_check.dart`. |
-| `lib/db/` | On-device Drift SQLite persistence: `tables.dart`, `database.dart`, DAOs (`account_dao.dart`, `message_dao.dart`). |
-| `lib/filter/` | Bridge between app and `spam_core`: `classification_service.dart`, `token_store_drift.dart`. |
+| `lib/db/` | On-device SQLite persistence: `database.dart` (opens the file and creates the schema with plain SQL). `tables.dart` is an unused Drift-style declaration of the same schema. |
+| `lib/filter/` | Bridge between app and `spam_core`: `filter_service.dart` (classify and persist verdicts), `verdict_controller.dart` (user verdicts and training), `token_store_drift.dart` (SQLite-backed token counts), `cold_start.dart`, `imap_flags.dart`. |
 | `lib/funnel/` | Onboarding, permissions, and feature telemetry configuration (`funnel_config.dart`). |
-| `lib/mail/` | IMAP and SMTP protocol engine: `sync_engine.dart`, `mime_parser.dart`, `html_sanitizer.dart`, `outbox_worker.dart`. |
-| `lib/platform/` | Native platform abstraction: `native_services.dart`, `credential_storage.dart`, platform-specific runners. |
+| `lib/mail/` | IMAP and SMTP protocol engine: `sync_engine.dart`, `imap_service.dart`, `smtp_service.dart`, `account_repository.dart`, `autodiscover.dart`, `mail_auth.dart`, `html_sanitizer.dart`, `html_to_text.dart`. |
+| `lib/platform/` | Native platform abstraction: `platform_services.dart` (the contract plus shared UI-state providers), `native_services.dart` (iOS, Android, macOS), `desktop_services.dart` (Windows, Linux). |
 | `lib/premium/` | Pro features: `filter_sync.dart` (E2EE CRDT PN-counters), `crdt_counters.dart`, `sync_key.dart`, `onnx_scorer.dart`, `model_downloader.dart`. |
 | `lib/theme/` | Ledger Desk design system: `app_theme.dart`, `app_brand.dart`, `app_type.dart`. |
 | `lib/ui/` | Flutter widget views and components: |

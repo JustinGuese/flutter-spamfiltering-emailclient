@@ -10,7 +10,7 @@ The table below outlines the boundary between open-source components in this rep
 
 | Component | Repository Path / Service | License / Distribution | Description |
 | --- | --- | --- | --- |
-| **Flutter Client** | `app/` | Apache-2.0 | Complete cross-platform desktop and mobile email client with multi-account IMAP/SMTP, Drift SQLite database, and "Ledger Desk" UI. |
+| **Flutter Client** | `app/` | Apache-2.0 | Complete cross-platform desktop and mobile email client with multi-account IMAP/SMTP, SQLite database, and "Ledger Desk" UI. |
 | **Spam Core Engine** | `packages/spam_core/` | Apache-2.0 | Standalone pure-Dart classification library containing Robinson-Fisher Bayes, MinHash LSH, URL hashing, and auth parser. |
 | **Prior Trainer** | `tools/train_prior/` | Apache-2.0 | Offline CLI utility to process raw corpora and export bundled Bayesian seed priors (`prior_model.json`). |
 | **Protocol Specifications** | `docs/reference/backend-protocol.md` | Apache-2.0 | Documented HTTP specifications for anonymous community report submission, blocklist distribution, and sync endpoints. |
@@ -63,7 +63,7 @@ All bundled typefaces located under `app/assets/fonts/` are distributed under th
 ### Key Software Dependencies
 
 - **`enough_mail`**: Mozilla Public License 2.0 (MPL-2.0). Provides IMAP, SMTP, and MIME parsing capabilities.
-- **Drift / `sqlite3`**: MIT License / BSD-3-Clause. Embedded relational persistence.
+- **`sqlite3`**: MIT License / BSD-3-Clause. Embedded relational persistence.
 - **`dio`**: MIT License. HTTP client for community blocklists and API interaction.
 - **`flutter_riverpod`**: MIT License. Reactive state management.
 - **`pointycastle` / `crypto`**: MIT License / BSD-3-Clause. Cryptographic primitives for hashing and encryption.

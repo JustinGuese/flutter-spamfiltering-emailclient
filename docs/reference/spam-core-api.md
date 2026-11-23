@@ -41,7 +41,7 @@ import 'package:spam_core/spam_core.dart';
 - **`Tokenizer.tokens(Normalized normalized) -> List<String>`**:
   Extracts lowercase body words (length 2-30), OSB (Orthogonal Sparse Bigram) word pairs (window size 4), and prefixed header tokens (`subj:`, `from-dom:`, `url-dom:`, `ct:`, `x-mailer:`, `list-unsub:`, `list-id:`, `precedence:`).
 - **`Tokenizer.hashToken(String token) -> int`**:
-  Hashes a token string to a positive 63-bit integer using SHA-256 for cross-platform SQLite/Drift storage.
+  Hashes a token string to a positive 63-bit integer using SHA-256 for cross-platform SQLite storage.
 
 ### Authentication & Heuristics (`auth_results.dart`, `heuristics.dart`)
 
@@ -73,7 +73,7 @@ The following snippet demonstrates initializing a token store, training tokens, 
 import 'package:spam_core/spam_core.dart';
 
 Future<void> main() async {
-  // 1. Initialize an in-memory token store (or Drift TokenStore in production)
+  // 1. Initialize an in-memory token store (or `TokenStoreDrift` (SQLite) in production)
   final store = MemoryTokenStore();
 
   // 2. Pre-train a few known tokens

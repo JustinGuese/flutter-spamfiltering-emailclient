@@ -144,7 +144,7 @@ Text(UiStrings.ledgerPossible)
 Keep platform bindings, business logic, and database access clean and decoupled:
 
 - Native system calls must route through the `PlatformService` interface in `app/lib/platform/`.
-- Local email storage and filter state are managed via Drift SQLite in `app/lib/db/`.
+- Local email storage and filter state are managed via SQLite in `app/lib/db/`.
 - Bayesian classification and token extraction are strictly isolated inside `packages/spam_core/`. The core has zero Flutter dependencies.
 
 ---
@@ -155,7 +155,7 @@ Keep platform bindings, business logic, and database access clean and decoupled:
 | --- | --- |
 | `app/lib/app/` | Application bootstrap, routing, and centralized copy (`strings.dart`, `ui_strings.dart`). |
 | `app/lib/theme/` | "The Ledger Desk" brand configuration (`app_brand.dart`), type system (`app_type.dart`), and palette helpers (`app_theme.dart`). |
-| `app/lib/db/` | Drift SQLite database definition (`tables.dart`) and connection lifecycle. |
+| `app/lib/db/` | SQLite database setup and connection lifecycle (`database.dart`). |
 | `app/lib/mail/` | IMAP/SMTP client wrappers (`enough_mail`), HTML body sanitizer (`html_sanitizer.dart`), and background sync. |
 | `app/lib/filter/` | Token store integration, cold-start model loader, and 3-way verdict state coordinator. |
 | `app/lib/community/` | Anonymous zero-ID report client, cryptographic PoW solver, and blocklist synchronization. |

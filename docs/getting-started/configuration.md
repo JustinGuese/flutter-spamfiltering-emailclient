@@ -53,7 +53,7 @@ The following table details what works out-of-the-box with zero keys and no back
 | **Email Composition** | **Yes.** Draft creation, rich editing, MIME formatting, and SMTP transmission via `enough_mail`. | None. |
 | **Local Bayesian Spam Filter** | **Yes.** Full Robinson-Fisher chi-squared classification based on `packages/spam_core`. | None. |
 | **Cold Start Prior** | **Yes.** Seeds initial weights using the local asset `app/assets/prior_model.json`. | None. |
-| **Filter Retraining** | **Yes.** Changing verdicts in the Verdict Bar immediately updates local Drift SQLite token counts. | None. |
+| **Filter Retraining** | **Yes.** Changing verdicts in the Verdict Bar immediately updates local SQLite token counts. | None. |
 | **Evidence Sheet** | **Yes.** Explains token probabilities and SPF/DKIM/DMARC authentication results locally. | None. |
 | **Secure Storage** | **Yes.** Credentials encrypted in native platform hardware keystore (`flutter_secure_storage`). | None. |
 | **Community Blocklist Sync** | **No.** Cannot download global fingerprint lists without a reachable community backend. | Requires `BACKEND_URL` serving `/v1/blocklist/*`. |

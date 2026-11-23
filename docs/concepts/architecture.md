@@ -33,7 +33,7 @@ graph TD
 
     subgraph Core ["Domain & Storage Engines"]
         SpamCore["packages/spam_core (Classifier / Bayes / Fingerprints)"]
-        DriftDB["Drift / SQLite Database (app/lib/db)"]
+        DriftDB["SQLite Database (app/lib/db)"]
         EnoughMail["enough_mail (IMAP / SMTP Client)"]
         SecureStore["FlutterSecureStorage (Keychain / Secret Service)"]
     end
@@ -50,7 +50,7 @@ graph TD
 - **Service Layer (`app/lib/mail/`, `app/lib/filter/`, `app/lib/community/`, `app/lib/premium/`)**: Coordinates asynchronous domain workflows: IMAP synchronisation loops, verdict submission, token training, blocklist synchronization, and encrypted filter synchronization.
 - **Domain & Engine Layer**:
   - `packages/spam_core`: Pure Dart spam engine containing the normalizer, tokenizer, Bayes classifier, heuristics, combiner, and fingerprint generators. Zero Flutter dependencies.
-  - `app/lib/db/`: Drift-based SQLite persistence for messages, folders, tokens, classifications, and community blocklist entries.
+  - `app/lib/db/`: SQLite persistence for messages, folders, tokens, classifications, and community blocklist entries.
   - `enough_mail`: High-performance IMAP/SMTP transport library handling raw RFC-822 messages and socket encryption.
   - `FlutterSecureStorage`: Platform keychain abstraction storing sensitive mail passwords, OAuth2 tokens, and E2EE filter sync keys.
 
@@ -106,7 +106,7 @@ sequenceDiagram
     participant Server as IMAP Server
     participant Sync as SyncEngine
     participant San as HtmlSanitizer
-    participant DB as SQLite (Drift)
+    participant DB as SQLite
     participant Filter as FilterService
     participant Core as spam_core (Classifier)
     participant UI as UI (Riverpod Stream)

@@ -1,6 +1,9 @@
 # Database Schema Reference
 
-The client uses [Drift](https://drift.simonbinder.eu/) (SQLite) for all local persistence. The schema is defined in `app/lib/db/tables.dart`.
+The client stores everything locally in SQLite through the `sqlite3` package, using hand-written SQL. The schema that actually runs is the `CREATE TABLE IF NOT EXISTS` block in `AppDatabase._createTables()` (`app/lib/db/database.dart`).
+
+!!! note
+    `app/lib/db/tables.dart` is a Drift-style declaration of the same schema. It is **not wired in** (no code generation, nothing imports it), and it does not list the `pending_imap_actions` table. The column listings below come from it, so if the two ever disagree, `database.dart` is the source of truth.
 
 All tables are created and managed on-device. No personal email data or credentials ever reside on external servers.
 
@@ -11,7 +14,7 @@ All tables are created and managed on-device. No personal email data or credenti
 ### 1. `Accounts` (`accounts`)
 Stores configured IMAP/SMTP mail accounts.
 
-| Column | Drift Type | Constraints | Description |
+| Column | Declared type | Constraints | Description |
 |---|---|---|---|
 | `id` | `TextColumn` | `primaryKey` | Unique account UUID. |
 | `email` | `TextColumn` | | User email address. |
@@ -28,7 +31,7 @@ Stores configured IMAP/SMTP mail accounts.
 ### 2. `Folders` (`folders`)
 Mailbox folders associated with an account.
 
-| Column | Drift Type | Constraints | Description |
+| Column | Declared type | Constraints | Description |
 |---|---|---|---|
 | `id` | `TextColumn` | `primaryKey` | Unique folder UUID. |
 | `accountId` | `TextColumn` | | Foreign key reference to `accounts.id`. |
@@ -44,7 +47,7 @@ Mailbox folders associated with an account.
 ### 3. `Messages` (`messages`)
 Synchronized email message envelopes and classification metadata.
 
-| Column | Drift Type | Constraints | Description |
+| Column | Declared type | Constraints | Description |
 |---|---|---|---|
 | `id` | `TextColumn` | `primaryKey` | Internal message UUID. |
 | `accountId` | `TextColumn` | | Owning account UUID. |
@@ -68,7 +71,7 @@ Synchronized email message envelopes and classification metadata.
 ### 4. `Bodies` (`bodies`)
 Message body content separated from headers for storage and query efficiency.
 
-| Column | Drift Type | Constraints | Description |
+| Column | Declared type | Constraints | Description |
 |---|---|---|---|
 | `messageId` | `TextColumn` | `primaryKey` | Foreign key reference to `messages.id`. |
 | `textBody` | `TextColumn` | `nullable` | Plaintext email body. |
@@ -81,7 +84,7 @@ Message body content separated from headers for storage and query efficiency.
 ### 5. `Contacts` (`contacts`)
 Known contacts and sender trust rules.
 
-| Column | Drift Type | Constraints | Description |
+| Column | Declared type | Constraints | Description |
 |---|---|---|---|
 | `id` | `TextColumn` | `primaryKey` | Unique contact UUID. |
 | `email` | `TextColumn` | | Contact email address. |
@@ -94,7 +97,7 @@ Known contacts and sender trust rules.
 ### 6. `Classifications` (`classifications`)
 Detailed explainable scoring audit log for each classified message.
 
-| Column | Drift Type | Constraints | Description |
+| Column | Declared type | Constraints | Description |
 |---|---|---|---|
 | `messageId` | `TextColumn` | `primaryKey` | Foreign key reference to `messages.id`. |
 | `label` | `TextColumn` | | Predicted label (`spam`, `ham`, `newsletter`, `inbox`). |
@@ -108,7 +111,7 @@ Detailed explainable scoring audit log for each classified message.
 ### 7. `Tokens` (`tokens`)
 On-device Bayesian token dictionary storing occurrences across categories.
 
-| Column | Drift Type | Constraints | Description |
+| Column | Declared type | Constraints | Description |
 |---|---|---|---|
 | `hash` | `Int64Column` | `primaryKey` | Positive 63-bit SHA-256 token hash. |
 | `spam` | `IntColumn` | `default: 0` | Spam training count. |
@@ -121,7 +124,7 @@ On-device Bayesian token dictionary storing occurrences across categories.
 ### 8. `BlocklistEntries` (`blocklist_entries`)
 Active community spam indicators synchronized from the backend.
 
-| Column | Drift Type | Constraints | Description |
+| Column | Declared type | Constraints | Description |
 |---|---|---|---|
 | `id` | `TextColumn` | `primaryKey` | Indicator ID (e.g. `fp_123456`). |
 | `type` | `TextColumn` | | Indicator type: `body_band`, `url_hash`, `sender_domain`. |
@@ -134,16 +137,32 @@ Active community spam indicators synchronized from the backend.
 ### 9. `Settings` (`settings`)
 Key-value preferences and synchronization metadata.
 
-| Column | Drift Type | Constraints | Description |
+| Column | Declared type | Constraints | Description |
 |---|---|---|---|
 | `key` | `TextColumn` | `primaryKey` | Setting identifier (e.g. `blocklist_version`, `blocklist_last_sync`). |
 | `value` | `TextColumn` | | Value string. |
 
 ---
 
-## Schema Evolution & DAOs
+### 10. `pending_imap_actions`
+Queue of IMAP changes (for example a message moved after a verdict) that still have to be applied on the server. Defined only in `database.dart`.
 
-- Database operations are accessed through `AppDatabase` (`app/lib/db/database.dart`).
+| Column | Type | Description |
+|---|---|---|
+| `id` | `INTEGER` | Auto-increment primary key. |
+| `account_id` | `TEXT` | Owning account. |
+| `message_id` | `TEXT` | Local message ID. |
+| `uid` | `INTEGER` | IMAP UID of the message. |
+| `folder_id` | `TEXT` | Folder the message is in. |
+| `action` | `TEXT` | Action to apply on the server. |
+| `target_folder` | `TEXT` | Destination folder, if the action moves the message. Nullable. |
+
+---
+
+## Schema Management
+
+- Database operations go through `AppDatabase` (`app/lib/db/database.dart`); the UI and services run SQL on `db.db` directly.
+- Tables are created with `CREATE TABLE IF NOT EXISTS` on every start. There is no schema version and no migration step, so changing an existing table needs an explicit migration.
 - Bayesian counts implement the `TokenStore` interface via `TokenStoreDrift` (`app/lib/filter/token_store_drift.dart`).
 - Password credentials are **never** stored in the SQLite database; they are stored in the OS platform keychain/secret storage (`libsecret` on Linux, Keychain on macOS/iOS, DPAPI/Credential Manager on Windows, EncryptedSharedPreferences on Android).
 
