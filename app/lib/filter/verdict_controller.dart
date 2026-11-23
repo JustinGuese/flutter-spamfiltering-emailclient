@@ -8,6 +8,7 @@ import '../community/report_client.dart';
 import '../db/database.dart';
 import '../mail/account_repository.dart';
 import '../mail/imap_service.dart';
+import '../mail/sync_engine.dart';
 import '../premium/crdt_counters.dart';
 import '../premium/filter_sync.dart';
 import 'imap_flags.dart';
@@ -40,6 +41,9 @@ class VerdictController {
   final bool isSignedIn;
   final void Function()? onFirstSpamNotice;
 
+  /// Called after the local database changed, so lists and the reader rebuild.
+  final void Function()? onChanged;
+
   UndoRecord? _activeUndo;
   DateTime? _lastUploadTime;
   Timer? _debounceTimer;
@@ -53,6 +57,7 @@ class VerdictController {
     this.isPro = false,
     this.isSignedIn = false,
     this.onFirstSpamNotice,
+    this.onChanged,
   });
 
   UndoRecord? get activeUndo => _activeUndo;
@@ -82,20 +87,31 @@ class VerdictController {
       recipientAddrs: ((row['recipient_addrs'] as String?) ?? '').split(',').map((s) => s.trim()).toList(),
     );
     final normalized = Normalizer.normalize(msg);
-    for (final t in Tokenizer.tokens(normalized)) {
-      final h = Tokenizer.hashToken(t);
-      tokenStore.apply(h, prevLabel, -1);
-      tokenStore.apply(h, newLabel, 1);
-    }
-
     final score = newLabel == Label.spam ? 0.95 : 0.05;
-    db.db.execute('UPDATE messages SET classification_label = ?, spam_score = ? WHERE id = ?',
-        [newLabel.name, score, messageId]);
-    db.db.execute('''
-      INSERT OR REPLACE INTO classifications
-      (message_id, label, spam_score, evidence_json, classified_at, user_overridden)
-      VALUES (?, ?, ?, ?, ?, 1)
-    ''', [messageId, newLabel.name, score, '[]', DateTime.now().toIso8601String()]);
+
+    // One transaction for the whole verdict. A message has hundreds of tokens and
+    // each count update is a write; as separate autocommits every one waits for the
+    // disk, which froze the UI for ten seconds or more.
+    db.db.execute('BEGIN');
+    try {
+      for (final t in Tokenizer.tokens(normalized)) {
+        final h = Tokenizer.hashToken(t);
+        tokenStore.apply(h, prevLabel, -1);
+        tokenStore.apply(h, newLabel, 1);
+      }
+      db.db.execute('UPDATE messages SET classification_label = ?, spam_score = ? WHERE id = ?',
+          [newLabel.name, score, messageId]);
+      db.db.execute('''
+        INSERT OR REPLACE INTO classifications
+        (message_id, label, spam_score, evidence_json, classified_at, user_overridden)
+        VALUES (?, ?, ?, ?, ?, 1)
+      ''', [messageId, newLabel.name, score, '[]', DateTime.now().toIso8601String()]);
+      db.db.execute('COMMIT');
+    } catch (_) {
+      db.db.execute('ROLLBACK');
+      rethrow;
+    }
+    onChanged?.call();
 
     // Other messages from the same sender domain: what this verdict will also help
     // the filter recognise. Real count from the stored domain column.
@@ -167,6 +183,7 @@ class VerdictController {
         if (junk != null) {
           await imap.moveMessage(uid, junk['server_path'] as String);
           db.db.execute('UPDATE messages SET folder_id = ? WHERE id = ?', [junk['id'], msgId]);
+          onChanged?.call();
         }
       } else if (label == Label.inbox || label == Label.ham) {
         final inbox = db.db.select(
@@ -177,6 +194,7 @@ class VerdictController {
         if (inbox != null && curPath != inbox['server_path']) {
           await imap.moveMessage(uid, inbox['server_path'] as String);
           db.db.execute('UPDATE messages SET folder_id = ? WHERE id = ?', [inbox['id'], msgId]);
+          onChanged?.call();
         }
       } else if (label == Label.newsletter && mailbox.permanentMessageFlags.contains(r'\*')) {
         await ImapFlagsManager.markNewsletter(imap, uid, serverSupportsPermanentFlags: true);
@@ -254,4 +272,5 @@ final verdictControllerProvider = Provider<VerdictController>((ref) => VerdictCo
   isPro: ref.watch(dfEffectivePremiumProvider),
   isSignedIn: ref.watch(currentUserProvider) != null,
   onFirstSpamNotice: () => ref.read(sharingNoticeVisibleProvider.notifier).show(),
+  onChanged: () => ref.read(mailRevisionProvider.notifier).bump(),
 ));

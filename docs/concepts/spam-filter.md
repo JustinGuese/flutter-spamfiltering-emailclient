@@ -127,3 +127,16 @@ To eliminate black-box classification decisions, DataFortress Mail provides an o
   - Total calculated spam probability percentage.
   - List of contributing signals, showing signal identifier (e.g., `bayes`, `auth_dmarc_fail`, `link_mismatch`, `community_blocklist`), numerical weight adjustment, and human-readable explanation.
 - No telemetry is transmitted when opening or viewing the Evidence Sheet.
+
+## The Protection Screen
+
+Tapping a figure in the sidebar's "Your filter" card (`app/lib/ui/protection/`) opens a full-screen view that replays your own spam in four stages. Counts come from the local `classifications` table (`app/lib/filter/protection_stats.dart`); nothing is estimated and nothing is sent anywhere.
+
+| Stage | What it shows |
+|---|---|
+| No filter | Every message stored as spam would have reached the inbox. |
+| Our app | Spam the on-device filter catches by itself. Messages you marked by hand count here, since your verdict trains the filter. |
+| App + community | Spam that only crossed the 0.60 threshold because the community blocklist signal was on. For each stored message with `community` evidence, the score is recomputed without the signal (`Classifier.scoreWithoutCommunity`). |
+| Pro | Not a measurement. It shows what a new device knows with and without encrypted filter sync (the learned-word count carried over versus zero), with the upgrade card. It does not claim a higher catch rate: the neural scorer is not shipped yet (see [Premium](premium.md)). |
+
+Other tabs list caught messages (labelled Filter, Community or You) and what was learned. "Words learned" counts rows in `tokens`; the filter stores hashes, so no word list can be shown. When nothing has been caught yet the screen shows example numbers, clearly labelled as a sample. The "Pro" upgrade card appears for non-Pro users and opens the same upsell sheet as Settings, with price and renewal terms.

@@ -10,6 +10,7 @@ import '../../platform/platform_services.dart';
 import '../../theme/app_type.dart';
 import '../common/app_parts.dart';
 import '../common/mail_queries.dart';
+import '../protection/protection_view.dart';
 
 /// Left pane: brand mark, compose, mailboxes, a live "Your filter" ledger, account.
 class FoldersSidebar extends ConsumerWidget {
@@ -179,7 +180,9 @@ class _StatsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.df.colors;
-    Widget row(int n, String caption, Color color) => Padding(
+    Widget row(int n, String caption, Color color, ProtectionTab tab) => InkWell(
+          onTap: () => ProtectionView.open(context, tab: tab),
+          child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: Row(crossAxisAlignment: CrossAxisAlignment.baseline, textBaseline: TextBaseline.alphabetic, children: [
             SizedBox(
@@ -187,8 +190,9 @@ class _StatsCard extends StatelessWidget {
               child: Text(groupThousands(n), style: AppType.display(color, size: 26, weight: 600, height: 1, letterSpacing: -0.5)),
             ),
             Expanded(child: Text(caption, style: AppType.mono(c.textTertiary, size: 10.5, weight: FontWeight.w500))),
+            Icon(Icons.chevron_right_rounded, size: 16, color: c.textDisabled),
           ]),
-        );
+        ));
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       decoration: BoxDecoration(
@@ -197,11 +201,11 @@ class _StatsCard extends StatelessWidget {
         border: Border.all(color: c.hairline),
       ),
       child: Column(children: [
-        row(stats.caught, UiStrings.statCaught, c.error.base),
+        row(stats.caught, UiStrings.statCaught, c.error.base, ProtectionTab.story),
         Divider(height: 1, color: c.hairline),
-        row(stats.learned, UiStrings.statLearned, c.brand.deep),
+        row(stats.learned, UiStrings.statLearned, c.brand.deep, ProtectionTab.learned),
         Divider(height: 1, color: c.hairline),
-        row(stats.community, UiStrings.statCommunity, c.accent.base),
+        row(stats.community, UiStrings.statCommunity, c.accent.base, ProtectionTab.story),
       ]),
     );
   }

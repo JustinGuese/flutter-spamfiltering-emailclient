@@ -12,20 +12,20 @@ The client codebase defines two compile-time environment flags using `String.fro
 
 | Variable | File | Default Value | Purpose |
 |---|---|---|---|
-| `BACKEND_URL` | `app/lib/api/api_client.dart`<br>`app/lib/community/report_client.dart` | `http://localhost:8000` | Base URL for community blocklist sync, threat reports, and ham dispute votes. |
+| `BACKEND_URL` | `app/lib/api/backend_config.dart` (used by `api_client.dart` and `report_client.dart`) | `https://emailprogram-spamfilter-backend-api.datafortress.cloud` (the hosted backend) | Base URL for community blocklist sync, threat reports, and ham dispute votes. |
 | `REVENUECAT_API_KEY` | `app/lib/platform/native_services.dart` | `""` (empty string) | Public SDK key for RevenueCat subscription and entitlement management. |
 
 ### 1. `BACKEND_URL`
-- **Location**: `app/lib/api/api_client.dart:10` and `app/lib/community/report_client.dart:15`
-- **When unset**: Defaults to `http://localhost:8000`.
+- **Location**: `app/lib/api/backend_config.dart`, defined once and read by both the authenticated client and the anonymous community client.
+- **When unset**: Defaults to the hosted backend, `https://emailprogram-spamfilter-backend-api.datafortress.cloud`. Community blocklist sync and anonymous spam reporting are therefore live in a default build (reporting can be switched off under Settings → Privacy).
 - **Behavior**:
   - The application periodically requests blocklist snapshots from `/v1/blocklist/snapshot` and deltas from `/v1/blocklist/delta`.
   - When the user manually flags spam or rescues ham, anonymous fingerprint payloads are posted to `/v1/reports` and `/v1/votes/ham`.
-  - If no backend server is listening at the target URL, all network requests fail gracefully with logged exceptions (`[community report]`, `[community snapshot]`).
+  - If the backend is unreachable (offline, or a custom URL with no server), all network requests fail gracefully with logged exceptions (`[community report]`, `[community snapshot]`).
   - **No UI errors or crashes occur.** Local mail retrieval and on-device spam filtering proceed unhindered.
 - **Customization**:
   ```bash
-  flutter run -d linux --dart-define=BACKEND_URL=https://api.custom-server.org
+  flutter run -d linux --dart-define=BACKEND_URL=http://localhost:8000   # e.g. a backend you run locally
   ```
 
 ### 2. `REVENUECAT_API_KEY`
@@ -50,7 +50,7 @@ The following table details what works out-of-the-box with zero keys and no back
 |---|---|---|
 | **Email Accounts (IMAP/SMTP)** | **Yes.** Full connection to any standard IMAP/SMTP provider (Gmail, Outlook, iCloud, Fastmail, self-hosted). | None. |
 | **Email Viewing & Sync** | **Yes.** Periodic folder sync, UID tracking, body fetching, attachments, HTML sanitization, and remote image blocking. | None. |
-| **Email Composition** | **Yes.** Plain-text composing with Cc/Bcc, Reply / Reply All / Forward (quoted text, `In-Reply-To`/`References` threading headers), and SMTP transmission via `enough_mail`. Attachments are not supported yet. | None. |
+| **Email Composition** | **Yes.** Plain-text composing with Cc/Bcc, Reply / Reply All / Forward (quoted text, `In-Reply-To`/`References` threading headers), and SMTP transmission via `enough_mail`. Attachments in both directions: attach files while writing (up to 18 MB in total), and forwards carry the original's files. | None. |
 | **Local Bayesian Spam Filter** | **Yes.** Full Robinson-Fisher chi-squared classification based on `packages/spam_core`. | None. |
 | **Cold Start Prior** | **Yes.** Seeds initial weights using the local asset `app/assets/prior_model.json`. | None. |
 | **Filter Retraining** | **Yes.** Changing verdicts in the Verdict Bar immediately updates local SQLite token counts. | None. |

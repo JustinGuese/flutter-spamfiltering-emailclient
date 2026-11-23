@@ -63,7 +63,7 @@ Synchronized email message envelopes and classification metadata.
 | `snippet` | `TextColumn` | | Cleaned text preview snippet. |
 | `isRead` | `BoolColumn` | `default: false` | Message read flag (`\Seen`). |
 | `isFlagged` | `BoolColumn` | `default: false` | Message starred/flagged (`\Flagged`). |
-| `hasAttachments`| `BoolColumn` | `default: false` | Attachment presence flag. |
+| `hasAttachments`| `BoolColumn` | `default: false` | True when the message has at least one row in `attachments` (set from the same list when the message is stored). |
 | `classificationLabel` | `TextColumn` | `default: 'inbox'` | Current label: `inbox`, `spam`, `newsletter`. |
 | `spamScore` | `RealColumn` | `default: 0.0` | Computed spam probability score (0.0 to 1.0). |
 
@@ -158,12 +158,36 @@ Queue of IMAP changes (for example a message moved after a verdict) that still h
 | `action` | `TEXT` | Action to apply on the server. |
 | `target_folder` | `TEXT` | Destination folder, if the action moves the message. Nullable. |
 
+### 11. `attachments`
+The files of a received message: names and IMAP part numbers only. The bytes stay on the mail server until the user opens or saves the file (see [Attachments](../concepts/architecture.md#attachments)). Defined only in `database.dart` (`CREATE TABLE IF NOT EXISTS`, so existing databases gain it on the next start).
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | `INTEGER` | Auto-increment primary key. Kept stable across re-syncs of an unchanged message, because a forward draft refers to it. |
+| `message_id` | `TEXT` | Local message ID (`messages.id`). Indexed. |
+| `fetch_id` | `TEXT` | IMAP part number inside the message (`2`, `1.2`), the numbering `MimeMessage.getPart` resolves. |
+| `filename` | `TEXT` | File name reduced to a safe base name (no directories, control or reserved characters). |
+| `mime_type` | `TEXT` | Media type of the part. |
+| `size` | `INTEGER` | Bytes. An estimate from the encoded size until the file is downloaded, then the real size. `0` when unknown. |
+
+Rows are deleted with their account and rewritten when a message is stored again with a different file list. Mail stored before this table existed has no rows; they are filled in from the server the first time the message is opened.
+
+### 12. `search_index` (FTS5 virtual table)
+Full-text index behind the Search tab. Not declared in `tables.dart`; it is created in `AppDatabase._createSearchIndex()` (`app/lib/db/database.dart`).
+
+| Column | Description |
+|---|---|
+| `subject`, `sender`, `recipients`, `body` | Indexed text, taken from `messages` (recipients = To + Cc) and `bodies.text_body`. Tokenizer: `unicode61 remove_diacritics 2`. |
+| `rowid` | The `rowid` of the matching `bodies` row, which is how a hit is joined back to its message. |
+
+Three triggers on `bodies` (insert, update, delete) keep it current, so no sync path has to know about it. `AppDatabase` sets `PRAGMA recursive_triggers = ON` so that `INSERT OR REPLACE` (what the sync engine uses) fires the delete trigger. If the table does not exist yet, it is created and filled from the mail already stored. The index holds a copy of the message text and never leaves the device.
+
 ---
 
 ## Schema Management
 
 - Database operations go through `AppDatabase` (`app/lib/db/database.dart`); the UI and services run SQL on `db.db` directly.
-- Tables are created with `CREATE TABLE IF NOT EXISTS` on every start. There is no schema version. `AppDatabase._migrate()` runs after table creation and adds missing columns one at a time (it checks `PRAGMA table_info` first, so it is safe on fresh and existing databases); currently it adds `messages.cc_addrs`. Any further change to an existing table needs a step there.
+- Tables are created with `CREATE TABLE IF NOT EXISTS` on every start. There is no schema version. `AppDatabase._migrate()` runs after table creation and adds missing columns one at a time (it checks `PRAGMA table_info` first, so it is safe on fresh and existing databases); currently it adds `messages.cc_addrs`. Any further change to an existing table needs a step there. `_createSearchIndex()` runs last and is idempotent.
 - Bayesian counts implement the `TokenStore` interface via `TokenStoreDrift` (`app/lib/filter/token_store_drift.dart`).
 - Password credentials are **never** stored in the SQLite database; they are stored in the OS platform keychain/secret storage (`libsecret` on Linux, Keychain on macOS/iOS, DPAPI/Credential Manager on Windows, EncryptedSharedPreferences on Android).
 

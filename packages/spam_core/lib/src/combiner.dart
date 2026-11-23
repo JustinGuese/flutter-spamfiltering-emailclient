@@ -11,6 +11,17 @@ class Classifier {
   static const double spamHighThreshold = 0.90;
   static const double spamUnsureThreshold = 0.60;
 
+  /// Logit boost the community blocklist adds to a message's spam score.
+  static const double communityLogitBoost = 3.5;
+
+  /// The score this message would have had without the community blocklist
+  /// signal. Lets the app show what the blocklist added, from stored scores only.
+  static double scoreWithoutCommunity(double spamScore) {
+    final p = spamScore.clamp(1e-12, 1.0 - 1e-12);
+    final logit = math.log(p / (1.0 - p)) - communityLogitBoost;
+    return 1.0 / (1.0 + math.exp(-logit));
+  }
+
   /// Scores a normalized message and returns a comprehensive Verdict.
   static Future<Verdict> score(
     Normalized normalized,
@@ -139,7 +150,7 @@ class Classifier {
           logit += 1.0;
           break;
         case 'community_blocklist':
-          logit += 3.5;
+          logit += communityLogitBoost;
           break;
         case 'advanced_model':
           logit += (ev.weight - 0.5) * 2.5;

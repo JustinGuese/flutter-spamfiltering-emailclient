@@ -9,8 +9,10 @@ The following table itemizes what data crosses network boundaries versus what re
 | Data Element | Network Destination | Protocol & Security | Conditions |
 |---|---|---|---|
 | **Raw email body (plain text & HTML)** | *Never leaves device* | N/A | Kept in local SQLite database |
+| **Search index (copy of subject, sender, recipients and body text)** | *Never leaves device* | N/A | FTS5 table in the local SQLite database |
+| **Search queries** | Sent only to *your own* mail server (IMAP `SEARCH`) | Your IMAP host, over the account's existing connection | Never sent to the DataFortress backend or the community. Queries with `is:spam` / `is:newsletter` are not sent at all. |
 | **Email headers (Subject, From, To, CC)** | *Never leaves device* | N/A | Kept in local SQLite database |
-| **Email attachments** | *Never leaves device* | N/A | Stored in local app storage |
+| **Email attachments** | Fetched from, and attached mail sent through, *your own* mail server only | Your IMAP / SMTP host, over the account's existing connection | A received file is downloaded when you open or save it and then kept as a plain file in the app's own storage until you remove the account. Never sent to the DataFortress backend or the community; the spam filter does not read attachment content. |
 | **Account credentials (passwords, tokens)** | *Never leaves device* | N/A | Stored in OS-level hardware keystore |
 | **Contacts & address book** | *Never leaves device* | N/A | Kept in local SQLite database |
 | **Bayes word dictionaries & frequencies** | *Never leaves device* | N/A | Kept in local SQLite database |

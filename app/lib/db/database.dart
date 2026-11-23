@@ -9,6 +9,9 @@ class AppDatabase {
   final Database db;
 
   AppDatabase(this.db) {
+    // Needed so INSERT OR REPLACE on `bodies` fires the DELETE trigger that
+    // keeps the search index in step (SQLite skips it by default).
+    db.execute('PRAGMA recursive_triggers = ON');
     _createTables();
   }
 
@@ -70,6 +73,15 @@ class AppDatabase {
         sanitized_html TEXT,
         remote_images_blocked INTEGER NOT NULL DEFAULT 1
       );
+      CREATE TABLE IF NOT EXISTS attachments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        message_id TEXT NOT NULL,
+        fetch_id TEXT NOT NULL,
+        filename TEXT NOT NULL,
+        mime_type TEXT NOT NULL,
+        size INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE INDEX IF NOT EXISTS attachments_message ON attachments (message_id);
       CREATE TABLE IF NOT EXISTS contacts (
         id TEXT PRIMARY KEY,
         email TEXT NOT NULL,
@@ -114,6 +126,42 @@ class AppDatabase {
       );
     ''');
     _migrate();
+    _createSearchIndex();
+  }
+
+  /// Full-text index for the Search tab. Its rowid is the rowid of the matching
+  /// `bodies` row; triggers keep it current, so no write path has to know it
+  /// exists. Everything stays on the device.
+  void _createSearchIndex() {
+    final existed = db.select("SELECT 1 FROM sqlite_master WHERE name = 'search_index'").isNotEmpty;
+    db.execute('''
+      CREATE VIRTUAL TABLE IF NOT EXISTS search_index USING fts5(
+        subject, sender, recipients, body,
+        tokenize = 'unicode61 remove_diacritics 2'
+      );
+      CREATE TRIGGER IF NOT EXISTS search_index_ai AFTER INSERT ON bodies BEGIN
+        INSERT INTO search_index (rowid, subject, sender, recipients, body)
+        SELECT new.rowid, m.subject, m.sender, m.recipient_addrs || ' ' || m.cc_addrs, COALESCE(new.text_body, '')
+        FROM messages m WHERE m.id = new.message_id;
+      END;
+      CREATE TRIGGER IF NOT EXISTS search_index_au AFTER UPDATE ON bodies BEGIN
+        DELETE FROM search_index WHERE rowid = old.rowid;
+        INSERT INTO search_index (rowid, subject, sender, recipients, body)
+        SELECT new.rowid, m.subject, m.sender, m.recipient_addrs || ' ' || m.cc_addrs, COALESCE(new.text_body, '')
+        FROM messages m WHERE m.id = new.message_id;
+      END;
+      CREATE TRIGGER IF NOT EXISTS search_index_ad AFTER DELETE ON bodies BEGIN
+        DELETE FROM search_index WHERE rowid = old.rowid;
+      END;
+    ''');
+    if (!existed) {
+      // Mail synced before the index existed.
+      db.execute('''
+        INSERT INTO search_index (rowid, subject, sender, recipients, body)
+        SELECT b.rowid, m.subject, m.sender, m.recipient_addrs || ' ' || m.cc_addrs, COALESCE(b.text_body, '')
+        FROM bodies b JOIN messages m ON m.id = b.message_id
+      ''');
+    }
   }
 
   /// There is no schema version: each step checks the live table and adds only

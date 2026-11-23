@@ -130,6 +130,23 @@ class ImapService {
     return res.messages.where((m) => (m.uid ?? 0) > lastUid).toList();
   }
 
+  /// UIDs in the selected mailbox matching an IMAP `SEARCH` [criteria] string
+  /// (e.g. `TEXT "invoice" UNSEEN`). The server does the matching.
+  Future<List<int>> searchUids(String criteria) async {
+    final res = await client.uidSearchMessages(searchCriteria: criteria);
+    return res.matchingSequence?.toList() ?? const [];
+  }
+
+  /// The full messages with these UIDs from the selected mailbox.
+  Future<List<MimeMessage>> fetchByUids(List<int> uids) async {
+    if (uids.isEmpty) return const [];
+    final res = await client.uidFetchMessages(
+      MessageSequence.fromIds(uids, isUid: true),
+      _criteria,
+    );
+    return res.messages;
+  }
+
   static const _criteria = '(UID FLAGS BODY.PEEK[])';
 
   Future<void> setFlags(int uid, List<String> flags, {bool add = true}) async {

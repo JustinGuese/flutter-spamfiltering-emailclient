@@ -38,7 +38,7 @@ dart run flutter_launcher_icons
 dart run flutter_native_splash:create
 ```
 
-Backend URL is a compile-time define: `--dart-define=BACKEND_URL=...` (default `http://localhost:8000`); native builds also read `REVENUECAT_API_KEY`. Without a backend the mail client and local filter still work; community sync and Pro do not.
+Backend URL is a compile-time define: `--dart-define=BACKEND_URL=...` (default: the hosted backend, `https://emailprogram-spamfilter-backend-api.datafortress.cloud`; defined once in `app/lib/api/backend_config.dart`); native builds also read `REVENUECAT_API_KEY`. Without a backend the mail client and local filter still work; community sync and Pro do not.
 
 ## Local setup gotchas
 
@@ -52,7 +52,13 @@ Backend URL is a compile-time define: `--dart-define=BACKEND_URL=...` (default `
 
 **No reactive DB layer.** Storage is plain `sqlite3` with hand-written SQL run on `db.db.select/execute` from services and widgets alike. There is no change stream: anything that writes mail must bump `mailRevisionProvider`, and list widgets `ref.watch` it to rebuild. If a screen doesn't update after a write, this is why.
 
+**Batch writes need a transaction.** The database runs in SQLite's default mode, where every statement outside `BEGIN`/`COMMIT` is its own disk sync. Anything that writes in a loop on the UI isolate (token training in `VerdictController.applyVerdict`, seeding) must wrap the loop in one transaction: a 600-token message took 10.6 s as autocommits and 91 ms in one transaction.
+
 **Drift is declared but not used.** `app/lib/db/tables.dart` is a Drift-style schema with no codegen and no importers; the schema that runs is the `CREATE TABLE IF NOT EXISTS` block in `app/lib/db/database.dart` (it also has `pending_imap_actions`, which `tables.dart` lacks). There is no schema version; `AppDatabase._migrate()` adds missing columns by checking `PRAGMA table_info` (currently `messages.cc_addrs`), so altering an existing table needs a step there. Despite its name, `TokenStoreDrift` is SQLite-backed.
+
+**Search is local first, then the user's mail server.** The Search tab queries `search_index`, an FTS5 table in the same SQLite file, kept current by triggers on `bodies` (`AppDatabase._createSearchIndex`). After a typing pause it also calls `SyncEngine.searchRemote`, which runs an IMAP `SEARCH` per account and *imports* the hits it lacks through `_storeMessage` (the same writer sync uses), so one local query shows everything. It is never sent to the DataFortress backend. Invariants: `searchRemote` runs on the same queue/connection as sync and syncs the account first; in folders sync keeps current (Inbox, Sent, unlabeled) it only imports UIDs at or below the newest stored one, because a higher one would make `fetchNewerThan` skip the mail in between; Junk, Trash, Drafts and virtual folders are not searched (imported mail is unscored). `is:spam` / `is:newsletter` are local verdicts, so they are never sent to the server. Parsing lives in `app/lib/search/search_query.dart` (FTS5 expression, SQL filters and IMAP criteria from one parse). FTS5 rejects implicit AND next to a parenthesised term, so terms are joined with explicit `AND`. A stored-mail write that bypasses `bodies` would leave the index stale.
+
+**Attachments are listed at sync, downloaded on tap.** `_storeMessage` writes names and IMAP part numbers to `attachments` (`extractAttachments`, `app/lib/mail/attachments.dart`); bytes stay on the server until `SyncEngine.downloadAttachment` re-fetches the message and caches the part as a plain file under `<app support>/attachments/<account>/`. Never trust a stored UID for that: mail moved to Junk keeps its old UID, so the copy must match the stored `Message-ID`, with a header search as fallback. Sender-supplied file names go through `safeFileName`, and runnable types (`isRunnableFileName`) are saved, never opened. Sending builds `multipart/mixed` in `buildOutgoingMessage`; total capped by `maxOutgoingAttachmentBytes`. macOS entitlements need `network.client` and `files.user-selected.read-write`.
 
 **Sync serialization.** All account syncs share one IMAP connection; `SyncEngine.syncAccount` queues them and joins duplicate requests per account. Keep that invariant when adding IMAP work. Only the Inbox, unlabeled folders and Sent are synced; Sent (`classify: false`) is never scored, moved to Junk or used for training, and virtual folders (Gmail All Mail etc.) are skipped. Folder listing must stay recursive or nested Sent/Trash folders disappear.
 

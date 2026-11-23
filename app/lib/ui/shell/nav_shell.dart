@@ -4,6 +4,7 @@ import 'package:df_app_shell/df_app_shell.dart';
 import '../../app/strings.dart';
 import '../mailbox/mailbox_view.dart';
 import '../reader/reader_view.dart';
+import '../search/search_view.dart';
 import '../settings/settings_view.dart';
 import '../compose/compose_view.dart';
 import 'folders_sidebar.dart';
@@ -40,7 +41,7 @@ class AppNavShell extends ConsumerWidget {
 
     Widget activeBody = switch (currentIndex) {
       0 => mailBody,
-      1 => const Scaffold(body: Center(child: Text(AppStrings.navSearch))),
+      1 => const SearchView(),
       2 => const SettingsView(),
       _ => mailBody,
     };
@@ -48,6 +49,8 @@ class AppNavShell extends ConsumerWidget {
     return DfNavShell(
       currentIndex: currentIndex,
       onDestinationSelected: (idx) {
+        // The reader pane is shared between tabs; start each tab on its list.
+        ref.read(selectedMessageIdProvider.notifier).set(null);
         ref.read(navIndexProvider.notifier).set(idx);
       },
       destinations: const [

@@ -80,6 +80,24 @@ void main() {
       expect(ids.contains('auth_dmarc_fail'), isTrue);
     });
 
+    test('scoreWithoutCommunity undoes exactly what the blocklist added', () async {
+      final msg = Message(
+        headers: {'from': ['a@b.com'], 'subject': ['Claim your lottery winnings now']},
+        textBody: 'Claim your payout immediately, lottery reward waiting.',
+      );
+      final norm = Normalizer.normalize(msg);
+      final plain = await Classifier.score(norm, store);
+      final flagged = await Classifier.score(norm, store, const Signals(communityBlocklistMatch: true));
+
+      expect(flagged.spamScore, greaterThan(plain.spamScore));
+      expect(Classifier.scoreWithoutCommunity(flagged.spamScore), closeTo(plain.spamScore, 1e-6));
+    });
+
+    test('scoreWithoutCommunity survives saturated scores', () {
+      expect(Classifier.scoreWithoutCommunity(1.0).isFinite, isTrue);
+      expect(Classifier.scoreWithoutCommunity(0.0).isFinite, isTrue);
+    });
+
     test('detects stage-B newsletter from headers', () async {
       final msg = Message(
         headers: {

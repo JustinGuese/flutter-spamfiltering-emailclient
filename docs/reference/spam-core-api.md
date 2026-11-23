@@ -29,6 +29,8 @@ import 'package:spam_core/spam_core.dart';
 - **`Classifier.score(Normalized normalized, TokenStore store, [Signals? signals, String? authservId]) -> Future<Verdict>`**:
   Runs Stage-A Robinson-Fisher Bayes scoring combined with authentication checks and heuristics. If `spamScore < 0.60`, evaluates Stage-B newsletter indicators.
   - Thresholds: `spamUnsureThreshold = 0.60`, `spamHighThreshold = 0.90`.
+- **`Classifier.communityLogitBoost`** (`3.5`) and **`Classifier.scoreWithoutCommunity(double spamScore)`**:
+  The logit the community blocklist signal adds, and the inverse: the score a message would have had without that signal. The app uses it to show what the blocklist added, from stored scores only.
 - **`BayesClassifier.scoreTokens(List<int> tokenHashes, TokenStore store, ...) -> Future<BayesResult>`**:
   Evaluates token spam probabilities using Gary Robinson smoothed priors and combines them via Fisher's method with chi-squared upper tail survival analysis.
 - **`BayesResult`**:

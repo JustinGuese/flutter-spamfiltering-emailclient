@@ -13,6 +13,7 @@ Building and running on desktop Linux (Ubuntu, Debian, Fedora, Arch) requires th
 - **Build Tools**: `clang`, `cmake` (`>= 3.13`), `ninja-build`, `pkg-config`
 - **GTK Toolkit**: `libgtk-3-dev` (checked via `pkg_check_modules(GTK REQUIRED IMPORTED_TARGET gtk+-3.0)` in `app/linux/CMakeLists.txt`)
 - **Keyring Storage**: `libsecret-1-dev`, `gnome-keyring`, and `libsecret-tools`
+- **Attachments (runtime)**: the file picker uses the freedesktop file-chooser portal over D-Bus (`xdg-desktop-portal` with a backend such as `xdg-desktop-portal-gtk`, present on ordinary GNOME/KDE desktops), and opening a received file uses `xdg-open`. Without them the compose window and the reader report that the picker or an app to open the file is unavailable; nothing else breaks.
 
 ### Secure Credential Storage (`libsecret`)
 
@@ -52,11 +53,15 @@ The macOS target has App Sandbox enabled by default in both debug and release co
   - `com.apple.security.app-sandbox`: `true`
   - `com.apple.security.cs.allow-jit`: `true`
   - `com.apple.security.network.server`: `true`
+  - `com.apple.security.network.client`: `true`
+  - `com.apple.security.files.user-selected.read-write`: `true`
 - `app/macos/Runner/Release.entitlements`:
   - `com.apple.security.app-sandbox`: `true`
+  - `com.apple.security.network.client`: `true`
+  - `com.apple.security.files.user-selected.read-write`: `true`
 
-!!! warning "Outgoing Network Entitlement in Release Builds"
-    Sandboxed macOS applications require the `com.apple.security.network.client` entitlement to establish outgoing TCP connections (such as connecting to IMAP/SMTP servers on ports 993/465/587 or the community API over HTTPS). Ensure this key is present in your release entitlements when preparing non-debug builds.
+!!! warning "Entitlements that must stay"
+    Sandboxed macOS applications require `com.apple.security.network.client` to establish outgoing TCP connections (IMAP/SMTP on ports 993/465/587, the community API over HTTPS), and `com.apple.security.files.user-selected.read-write` for the file picker used to attach files and to save received ones. Keep both in the debug and release entitlements.
 
 ### Keychain Services
 
@@ -71,6 +76,10 @@ Credentials are stored securely in the macOS Keychain Services API using `flutte
 - **CMake Minimum Version**: `3.14` (configured in `app/windows/CMakeLists.txt`).
 - **CMake Policy Range**: `3.14...3.25` for modern C++ CMake target behavior.
 - **Build Requirements**: Visual Studio 2022 (or VS 2019) with C++ Desktop Development and Windows 10/11 SDK.
+
+### Attachments
+
+The file picker is the native Windows dialog and received files open with the default handler for their type (`ShellExecute`). Program and script types are never opened from the reader, only saved.
 
 ### Credential Storage
 
@@ -90,6 +99,10 @@ On Windows, `flutter_secure_storage` persists credentials via the Windows Data P
   - `minSdk`: Inherited from `flutter.minSdkVersion` (minimum supported version is determined by plugin requirements).
   - `targetSdk`: Inherited from `flutter.targetSdkVersion`.
 
+### Attachments
+
+Files are picked with the system document picker (Storage Access Framework), so no storage permission is needed. Received files are opened through `open_filex`'s `FileProvider`, which covers the app's private files directory where downloads are kept.
+
 ### Credential Storage
 
 Credentials are stored in Android `EncryptedSharedPreferences` backed by the hardware-isolated Android Keystore.
@@ -101,6 +114,10 @@ Credentials are stored in Android `EncryptedSharedPreferences` backed by the har
 ### Deployment Target
 
 - **iOS Target**: `15.0` (configured via `IPHONEOS_DEPLOYMENT_TARGET = 15.0` in `app/ios/Runner.xcodeproj/project.pbxproj`).
+
+### Attachments
+
+No `Info.plist` keys are needed: files are chosen with the system document picker and opened with the system document viewer.
 
 ### Credential Storage
 

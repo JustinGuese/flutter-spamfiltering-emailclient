@@ -1,13 +1,14 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:df_firebase_auth/df_firebase_auth.dart';
+import 'backend_config.dart';
 
 /// Authenticated API client provider configured to inject Firebase ID token (JWT)
 /// rather than raw uid into Authorization Bearer headers.
 final authenticatedDioProvider = Provider<Dio>((ref) {
   final dio = Dio(
     BaseOptions(
-      baseUrl: const String.fromEnvironment('BACKEND_URL', defaultValue: 'http://localhost:8000'),
+      baseUrl: backendUrl,
       connectTimeout: const Duration(seconds: 15),
       receiveTimeout: const Duration(seconds: 15),
       headers: {'Accept': 'application/json'},

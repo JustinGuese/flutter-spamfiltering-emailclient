@@ -5,6 +5,10 @@ import 'package:df_theme/df_theme.dart';
 import 'package:spam_core/spam_core.dart';
 import '../../db/database.dart';
 import '../../mail/account_repository.dart';
+import '../../mail/attachments.dart';
+import '../../mail/sync_engine.dart';
+import '../../app/log.dart';
+import 'attachment_strip.dart';
 import '../../mail/html_to_text.dart';
 import '../../mail/reply_builder.dart';
 import '../compose/compose_view.dart';
@@ -224,6 +228,10 @@ class _ReaderViewState extends ConsumerState<ReaderView> {
                               _actionButton(Icons.forward_rounded, AppStrings.actionForward, () => _compose(ComposeMode.forward, row, plainBody)),
                             ],
                           ),
+                          if (row['has_attachments'] == 1) ...[
+                            const SizedBox(height: 20),
+                            AttachmentStrip(key: ValueKey('att_$id'), messageId: id),
+                          ],
                           SizedBox(height: narrow ? 20 : 24),
                           Divider(height: 1, color: palette.hairline),
                           SizedBox(height: narrow ? 24 : 32),
@@ -267,10 +275,38 @@ class _ReaderViewState extends ConsumerState<ReaderView> {
     );
   }
 
-  void _compose(ComposeMode mode, Map<String, Object?> row, String plainBody) {
+  Future<void> _compose(ComposeMode mode, Map<String, Object?> row, String plainBody) async {
     final accounts = ref.read(accountRepositoryProvider).listAccounts();
     final account = accounts.where((a) => a.id == row['account_id']).firstOrNull;
     if (account == null) return;
+
+    // A forward carries the original's files. Dropping them silently would send
+    // a mail the person believes is complete, so a failure stops the forward.
+    var forwarded = const <OutgoingAttachment>[];
+    if (mode == ComposeMode.forward && row['has_attachments'] == 1) {
+      final engine = ref.read(syncEngineProvider);
+      try {
+        final files = await engine.attachmentsOf(row['id'] as String);
+        forwarded = [
+          for (final f in files)
+            OutgoingAttachment(
+              fileName: f.fileName,
+              mimeType: f.mimeType,
+              size: f.size,
+              load: () async => (await engine.downloadAttachment(f.id!)).readAsBytes(),
+            ),
+        ];
+      } catch (e, st) {
+        logError('forward attachments', e, st);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(UiStrings.forwardAttachmentsFailed.replaceAll('{error}', e is StateError ? e.message : e.toString())),
+        ));
+        return;
+      }
+      if (!mounted) return;
+    }
+
     List<String> addrs(Object? v) =>
         ((v as String?) ?? '').split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
 
@@ -285,6 +321,7 @@ class _ReaderViewState extends ConsumerState<ReaderView> {
       dateText: formatFullDate(DateTime.parse(row['date'] as String)),
       textBody: plainBody,
       messageId: row['message_id'] as String?,
+      attachments: forwarded,
     );
     widget.onReply?.call();
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => ComposeView(draft: draft)));

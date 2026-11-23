@@ -4,7 +4,7 @@
 
 This document describes the exact HTTP REST API and cryptographic payload shapes expected by the client code (`app/lib/community/report_client.dart`, `app/lib/community/blocklist_sync.dart`, `app/lib/premium/filter_sync.dart`, and `app/lib/api/api_client.dart`).
 
-All endpoints are relative to `BACKEND_URL` (default `http://localhost:8000`).
+All endpoints are relative to `BACKEND_URL` (default `https://emailprogram-spamfilter-backend-api.datafortress.cloud`).
 
 ---
 

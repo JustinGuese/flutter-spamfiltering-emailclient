@@ -1,6 +1,8 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../app/log.dart';
 import '../db/database.dart';
+import 'attachments.dart';
 import 'mail_auth.dart';
 
 class AccountRecord {
@@ -31,9 +33,14 @@ class AccountRepository {
   final AppDatabase db;
   final FlutterSecureStorage secureStorage;
 
+  /// Downloaded attachments; removed with the account. Null in tests that
+  /// never download one.
+  final AttachmentCache? attachmentCache;
+
   AccountRepository({
     required this.db,
     FlutterSecureStorage? storage,
+    this.attachmentCache,
   }) : secureStorage = storage ?? const FlutterSecureStorage();
 
   Future<void> saveAccount(AccountRecord account, MailAuth auth) async {
@@ -97,18 +104,26 @@ class AccountRepository {
     const ofAccount = 'SELECT id FROM messages WHERE account_id = ?';
     db.db.execute('DELETE FROM bodies WHERE message_id IN ($ofAccount)', [accountId]);
     db.db.execute('DELETE FROM classifications WHERE message_id IN ($ofAccount)', [accountId]);
+    db.db.execute('DELETE FROM attachments WHERE message_id IN ($ofAccount)', [accountId]);
     db.db.execute('DELETE FROM messages WHERE account_id = ?', [accountId]);
     db.db.execute('DELETE FROM pending_imap_actions WHERE account_id = ?', [accountId]);
     db.db.execute('DELETE FROM folders WHERE account_id = ?', [accountId]);
     db.db.execute('DELETE FROM settings WHERE key = ?', ['uid_sync_v2_$accountId']);
     db.db.execute('DELETE FROM accounts WHERE id = ?', [accountId]);
+    try {
+      await attachmentCache?.deleteAccount(accountId);
+    } catch (e, st) {
+      logError('delete cached attachments', e, st); // must not keep the keychain entries alive
+    }
     await secureStorage.delete(key: 'auth_pass_$accountId');
     await secureStorage.delete(key: 'auth_oauth_token_$accountId');
     await secureStorage.delete(key: 'auth_oauth_refresh_$accountId');
   }
 }
 
+final attachmentCacheProvider = Provider<AttachmentCache>((ref) => AttachmentCache());
+
 final accountRepositoryProvider = Provider<AccountRepository>((ref) {
   final db = ref.watch(databaseProvider);
-  return AccountRepository(db: db);
+  return AccountRepository(db: db, attachmentCache: ref.watch(attachmentCacheProvider));
 });

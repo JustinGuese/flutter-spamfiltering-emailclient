@@ -1,7 +1,11 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:df_theme/df_theme.dart';
+import 'package:file_picker/file_picker.dart';
+import '../../app/log.dart';
+import '../../mail/attachments.dart';
 import '../../app/strings.dart';
 import '../../app/ui_strings.dart';
 import '../../theme/app_type.dart';
@@ -30,6 +34,8 @@ class _ComposeViewState extends ConsumerState<ComposeView> {
 
   bool _showCc = false;
   bool _showBcc = false;
+  late final List<OutgoingAttachment> _attachments = [...?widget.draft?.attachments];
+  bool _sending = false;
   String? _selectedAccountId;
   String _savedIndicator = '';
   Timer? _autosaveTimer;
@@ -141,21 +147,24 @@ class _ComposeViewState extends ConsumerState<ComposeView> {
                       padding: const EdgeInsets.only(right: 16),
                       child: Text(_savedIndicator, style: AppType.mono(palette.textTertiary, size: 11)),
                     ),
-                  Tooltip(
-                    message: UiStrings.attachSoon,
-                    child: IconButton(icon: const Icon(Icons.attach_file_rounded), onPressed: null),
+                  IconButton(
+                    icon: const Icon(Icons.attach_file_rounded),
+                    tooltip: AppStrings.composeAttach,
+                    onPressed: _sending ? null : _pickFiles,
                   ),
                   const SizedBox(width: 8),
                   FilledButton.icon(
-                    onPressed: () => _sendMessage(accounts),
+                    onPressed: _sending ? null : () => _sendMessage(accounts),
                     style: FilledButton.styleFrom(
                       backgroundColor: palette.brand.deep,
                       foregroundColor: palette.textOnBrand,
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(context.df.shape.pill)),
                     ),
-                    icon: const Icon(Icons.north_east_rounded, size: 16),
-                    label: Text(UiStrings.send, style: AppType.ui(palette.textOnBrand, size: 14, weight: FontWeight.w600)),
+                    icon: _sending
+                        ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: palette.textOnBrand))
+                        : const Icon(Icons.north_east_rounded, size: 16),
+                    label: Text(_sending ? UiStrings.sending : UiStrings.send, style: AppType.ui(palette.textOnBrand, size: 14, weight: FontWeight.w600)),
                   ),
                 ],
               ),
@@ -208,6 +217,29 @@ class _ComposeViewState extends ConsumerState<ComposeView> {
                             decoration: bare(AppStrings.composeSubjectHint).copyWith(contentPadding: const EdgeInsets.symmetric(vertical: 16)),
                           ),
                         ),
+                        if (_attachments.isNotEmpty)
+                          Container(
+                            width: double.infinity,
+                            padding: EdgeInsets.symmetric(horizontal: narrow ? 20 : 32, vertical: 10),
+                            decoration: BoxDecoration(border: Border(bottom: BorderSide(color: palette.hairline))),
+                            child: Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                for (final a in _attachments)
+                                  InputChip(
+                                    avatar: const Icon(Icons.attach_file_rounded, size: 16),
+                                    label: Text(
+                                      [a.fileName, formatBytes(a.size)].where((e) => e.isNotEmpty).join(' · '),
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppType.ui(palette.textPrimary, size: 13),
+                                    ),
+                                    deleteButtonTooltipMessage: UiStrings.attachRemove.replaceAll('{name}', a.fileName),
+                                    onDeleted: _sending ? null : () => setState(() => _attachments.remove(a)),
+                                  ),
+                              ],
+                            ),
+                          ),
                         Expanded(
                           child: LedgerPaper(
                             lineGap: 30,
@@ -238,26 +270,88 @@ class _ComposeViewState extends ConsumerState<ComposeView> {
     );
   }
 
+  int get _attachedBytes => _attachments.fold(0, (sum, a) => sum + a.size);
+
+  void _say(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  String _tooBig(String name) => UiStrings.attachTooBig
+      .replaceAll('{mb}', '${maxOutgoingAttachmentBytes ~/ (1024 * 1024)}')
+      .replaceAll('{name}', name);
+
+  Future<void> _pickFiles() async {
+    final List<PlatformFile> picked;
+    try {
+      picked = await FilePicker.pickFiles(dialogTitle: AppStrings.composeAttach);
+    } catch (e, st) {
+      logError('pick attachments', e, st);
+      _say(UiStrings.attachPickFailed);
+      return;
+    }
+    for (final f in picked) {
+      final size = await f.length() ?? 0;
+      if (_attachedBytes + size > maxOutgoingAttachmentBytes) {
+        _say(_tooBig(f.name));
+        continue;
+      }
+      if (!mounted) return;
+      setState(() => _attachments.add(OutgoingAttachment.named(f.name, size: size, load: f.readAsBytes)));
+    }
+  }
+
   Future<void> _sendMessage(List<AccountRecord> accounts) async {
     final account = accounts.where((a) => a.id == _selectedAccountId).firstOrNull;
     if (account == null) return;
-    final toList = _toController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
-    if (toList.isEmpty) return;
+    List<String> addrs(String text) => text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    final toList = addrs(_toController.text);
+    if (toList.isEmpty) {
+      _say(UiStrings.sendNeedsRecipient);
+      return;
+    }
 
     final auth = await ref.read(accountRepositoryProvider).getAuthForAccount(account.id);
     if (auth == null) return;
 
-    final smtp = SmtpService();
-    await smtp.sendMail(
-      account: account,
-      auth: auth,
-      to: toList,
-      cc: _ccController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
-      bcc: _bccController.text.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList(),
-      subject: _subjectController.text,
-      bodyText: _bodyController.text,
-      inReplyTo: widget.draft?.inReplyTo,
-    );
+    // One send at a time: a large upload takes seconds, and a second tap would mail it twice.
+    setState(() => _sending = true);
+    try {
+      final loaded = <LoadedAttachment>[];
+      var total = 0;
+      for (final a in _attachments) {
+        final Uint8List bytes;
+        try {
+          bytes = await a.load();
+        } catch (e, st) {
+          logError('read attachment ${a.fileName}', e, st);
+          throw StateError(UiStrings.attachUnreadable.replaceAll('{name}', a.fileName));
+        }
+        total += bytes.length;
+        if (total > maxOutgoingAttachmentBytes) throw StateError(_tooBig(a.fileName));
+        loaded.add(LoadedAttachment(a.fileName, a.mimeType, bytes));
+      }
+
+      final smtp = SmtpService();
+      await smtp.sendMail(
+        account: account,
+        auth: auth,
+        to: toList,
+        cc: addrs(_ccController.text),
+        bcc: addrs(_bccController.text),
+        subject: _subjectController.text,
+        bodyText: _bodyController.text,
+        inReplyTo: widget.draft?.inReplyTo,
+        attachments: loaded,
+      );
+    } catch (e, st) {
+      logError('send mail', e, st);
+      _say(UiStrings.sendFailed.replaceAll('{error}', e is StateError ? e.message : e.toString()));
+      if (mounted) setState(() => _sending = false);
+      return;
+    }
 
     // Servers that file sent mail themselves: pull it into Sent right away.
     unawaited(ref.read(syncEngineProvider).syncAccount(account.id).catchError((Object _) {}));

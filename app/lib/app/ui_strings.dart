@@ -53,7 +53,28 @@ abstract final class UiStrings {
   static const fieldBcc = 'Bcc';
   static const fieldSubject = 'Subject';
   static const send = 'Send';
-  static const attachSoon = 'Attachments are not available yet';
+
+  // Attachments
+  static const attachmentsTitle = 'Attachments';
+  static const attachmentsLoading = 'Loading attachments…';
+  static const attachmentsFailed = 'Could not load the attachments: {error}';
+  static const attachmentRetry = 'Retry';
+  static const attachmentSave = 'Save as…';
+  static const attachmentSaved = 'Saved to {path}';
+  static const attachmentDownloadFailed = 'Could not download "{name}": {error}';
+  static const attachmentNoApp = 'No app on this device can open "{name}". Use Save as… instead.';
+  static const attachmentRunnableTitle = 'This file can run code';
+  static const attachmentRunnableBody =
+      '"{name}" is a program or script. Opening it could run it on your device. Save it instead, and only run it if you trust the sender.';
+  static const attachmentCancel = 'Cancel';
+  static const attachTooBig = 'Attachments are limited to {mb} MB in total. "{name}" was not added.';
+  static const attachPickFailed = 'Could not open the file picker.';
+  static const attachUnreadable = 'Could not read "{name}".';
+  static const attachRemove = 'Remove {name}';
+  static const forwardAttachmentsFailed = 'Could not load the attachments to forward: {error}';
+  static const sendNeedsRecipient = 'Add at least one recipient.';
+  static const sendFailed = 'Could not send: {error}';
+  static const sending = 'Sending…';
 
   static const setupHeadline = 'Connect your mail.';
   static const setupSub = 'Any IMAP account. Your messages are read here, on this device, and nowhere else.';
@@ -115,6 +136,67 @@ abstract final class UiStrings {
 
   static const emptyListTitle = 'All quiet.';
   static const emptyListBody = 'Nothing in this view.';
+
+  static const protectionTitle = 'Your protection';
+  static const protectionClose = 'Close';
+  static const protectionTabStory = 'Protection';
+  static const protectionTabCaught = 'Caught';
+  static const protectionTabLearned = 'Learned';
+
+  static const stageNoFilter = 'No filter';
+  static const stageFilter = 'Our app';
+  static const stageCommunity = 'App + community';
+  static const stagePro = 'Pro';
+  static const storyReachInbox = 'spam reaching your inbox';
+  static const storyNoFilterBody =
+      'Without a filter, every one of these would be sitting in your inbox.';
+  static String storyFilterBody(int n) =>
+      'The on-device filter stops $n of them. Nothing leaves your device to do it.';
+  static String storyCommunityBody(int n) => n == 0
+      ? 'The community blocklist is on. None of your spam needed it so far; it covers what your filter has not seen yet.'
+      : 'Anonymous community fingerprints stop $n more that the filter alone would have let through.';
+  static const storyProBody =
+      'Pro does not catch more on this device. It makes every other device you own start as trained as this one.';
+  static const storyLegendFilter = 'caught by your filter';
+  static const storyLegendCommunity = 'caught by the community';
+  static const storyLegendInbox = 'reaches your inbox';
+  static String storySquareScale(int k) => 'Each square is about $k messages.';
+  static const storyReplay = 'Replay';
+  static const storyBasis =
+      'Counted from the spam on this device. The "community" step re-scores each message without the blocklist signal.';
+  static const storySampleTitle = 'Sample data';
+  static const storySampleBody =
+      'Nothing has been caught on this device yet, so this shows an example. It switches to your own numbers as mail is filtered.';
+
+  static const proPanelTitle = 'A new device, with and without Pro';
+  static const proPanelFree = 'Free';
+  static const proPanelProLabel = 'Pro';
+  static const proPanelFreeBody = 'starts from zero and learns again';
+  static const proPanelProBody = 'starts already trained, from your other devices';
+  static const proPanelWords = 'words learned';
+  static const proPanelFootnote =
+      'Free already includes the full filter and community protection. Pro adds encrypted sync only.';
+  static const proPanelActive = 'Pro is active: your filter follows you to every device.';
+  static const proCtaTitle = 'Train once, protected everywhere';
+  static const proCtaBody = 'Pro keeps what this filter has learned in sync across your phone and computers.';
+
+  static const caughtEmpty = 'No spam caught yet.';
+  static const caughtByFilter = 'Filter';
+  static const caughtByCommunity = 'Community';
+  static const caughtByYou = 'You';
+  static const caughtNoSubject = '(no subject)';
+  static String caughtShowing(int shown, int total) =>
+      shown >= total ? messageCount(total) : 'Latest $shown of $total';
+
+  static const learnedHeadline = 'words learned';
+  static const learnedBody =
+      'Each message you mark teaches the filter which words go with spam and which with real mail.';
+  static const learnedSpamWords = 'lean spam';
+  static const learnedHamWords = 'lean real mail';
+  static const learnedCorrections = 'messages you marked by hand';
+  static const learnedBlocklist = 'community fingerprints on this device';
+  static const learnedPrivacy =
+      'The filter stores a hash for each word, not the word and not the message. Nothing here can be read back into your mail.';
 
   static String messageCount(int n) => n == 1 ? '1 message' : '$n messages';
   static String unreadCount(int n) => '$n unread';

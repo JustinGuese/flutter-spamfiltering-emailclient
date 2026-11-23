@@ -22,7 +22,9 @@ Collective defense works without identifying anyone. Clients share MinHash finge
 
 - **"The Ledger Desk" Design**: Restrained ink-on-paper aesthetic with responsive adaptive layouts (single stack, two-pane, three-pane) and list density toggles. Includes bundled typography (Fraunces, Public Sans, JetBrains Mono) with zero runtime Google Fonts network calls.
 - **Transparent Local Spam Filter**: Local Robinson-Fisher Bayesian analysis with 3-way classification (Inbox · Newsletter · Spam) and an interactive Evidence Sheet that details exact token weights, SPF/DKIM/DMARC authentication signals, and heuristic flags.
-- **Everyday Mail Client**: Multi-account IMAP/SMTP, Sent folder, Reply / Reply All / Forward with proper threading headers, and a full-screen reading view.
+- **Everyday Mail Client**: Multi-account IMAP/SMTP, Sent folder, Reply / Reply All / Forward with proper threading headers, attachments in both directions (attach files up to 18 MB; received files download from your mail server when you open them; forwards keep the original's files), and a full-screen reading view.
+- **Search**: On-device full-text search over subjects, senders, recipients and message text. Words match as you type and are ranked by relevance; operators such as `from:`, `subject:`, `is:unread`, `has:attachment` and `after:2026-01-01` narrow it down. Results from the device appear at once; once you pause typing, your own mail server is asked too (IMAP `SEARCH`), so older mail and folders that are not synced (Archive, custom folders) are found, and the hits are stored locally. Nothing goes to the DataFortress backend.
+- **Your Protection Screen**: Tap the filter card in the sidebar for a full-screen replay of your own spam: what would reach the inbox with no filter, with the on-device filter, and with community fingerprints added, plus what the filter has learned and what Pro adds (encrypted multi-device sync).
 - **Privacy-First Architecture**: Aggressive client-side HTML sanitization (strips scripts, forms, and inline styles), remote image blocking by default with per-sender overrides, and hardware-backed credential storage via OS keychains.
 - **Anonymous Collective Defense**: Zero-ID spam and ham reporting using privacy-preserving MinHash LSH fingerprinting and hash proof-of-work—no user identifiers, tokens, or email bodies are ever transmitted.
 - **Open-Core Model**: The client application and core `spam_core` engine are fully open source. Hosted community reputation aggregation and encrypted sync services represent commercial extensions.
@@ -36,6 +38,7 @@ git clone https://github.com/JustinGuese/flutter-spamfiltering-emailclient.git
 cd flutter-spamfiltering-emailclient/app
 flutter pub get
 flutter run
+GDK_BACKEND=x11 flutter run -d linux --debug
 ```
 
 ---

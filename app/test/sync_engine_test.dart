@@ -22,6 +22,11 @@ class _FakeStorage implements FlutterSecureStorage {
   dynamic noSuchMethod(Invocation invocation) => null;
 }
 
+class _NoPasswordStorage extends _FakeStorage {
+  @override
+  Future<String?> read({required String key, dynamic iOptions, dynamic aOptions, dynamic lOptions, dynamic webOptions, dynamic mOptions, dynamic wOptions}) async => null;
+}
+
 MimeMessage _msg(int uid, int seq) => MimeMessage()
   ..uid = uid
   ..sequenceId = seq
@@ -55,6 +60,7 @@ class _FakeImap extends ImapService {
   @override
   Future<Mailbox> selectMailbox(String path) async {
     selected.add(path);
+    current = path;
     return Mailbox(encodedName: path, encodedPath: path, pathSeparator: '/', flags: []);
   }
 
@@ -68,6 +74,23 @@ class _FakeImap extends ImapService {
   Future<List<MimeMessage>> fetchNewerThan(int lastUid) async {
     newerThan = lastUid;
     return const [];
+  }
+
+  String? current;
+  final hitsByFolder = <String, List<int>>{};
+  final criteriaSeen = <String>[];
+  final fetchedUids = <String, List<int>>{};
+
+  @override
+  Future<List<int>> searchUids(String criteria) async {
+    criteriaSeen.add(criteria);
+    return hitsByFolder[current] ?? const [];
+  }
+
+  @override
+  Future<List<MimeMessage>> fetchByUids(List<int> uids) async {
+    fetchedUids[current!] = uids;
+    return [for (final u in uids) _msg(u, u)];
   }
 
   @override
@@ -131,8 +154,8 @@ void main() {
 
   test('an existing messages table without cc_addrs is migrated', () {
     final old = sqlite3.openInMemory()
-      ..execute('CREATE TABLE messages (id TEXT PRIMARY KEY, recipient_addrs TEXT NOT NULL)')
-      ..execute("INSERT INTO messages VALUES ('m1', 'x@y.z')");
+      ..execute('CREATE TABLE messages (id TEXT PRIMARY KEY, subject TEXT, sender TEXT, recipient_addrs TEXT NOT NULL)')
+      ..execute("INSERT INTO messages (id, recipient_addrs) VALUES ('m1', 'x@y.z')");
     final migrated = AppDatabase(old);
     expect(migrated.db.select('SELECT cc_addrs FROM messages').first['cc_addrs'], '');
   });
@@ -208,5 +231,73 @@ void main() {
       ImapService().connectAndAuthenticate(account, PasswordMailAuth('pw'), timeout: const Duration(seconds: 1)),
       throwsA(isA<TimeoutException>()),
     );
+  });
+
+  group('remote search', () {
+    final folders = const [
+      ImapFolderInfo(name: 'INBOX', serverPath: 'INBOX', specialUse: 'inbox'),
+      ImapFolderInfo(name: 'Archive', serverPath: 'Archive', specialUse: 'archive'),
+      ImapFolderInfo(name: 'Junk', serverPath: 'Junk', specialUse: 'junk'),
+      ImapFolderInfo(name: 'All Mail', serverPath: '[Gmail]/All Mail', specialUse: 'virtual'),
+    ];
+
+    test('imports older and unsynced-folder hits, skips stored, newer-than-synced, junk and virtual', () async {
+      final imap = _FakeImap([_msg(9001, 1), _msg(9002, 2)])..folders = folders;
+      final engine = SyncEngine(db: db, accountRepo: repo, imap: imap);
+      await engine.syncAccount('a1'); // stores 9001, 9002; creates folder rows
+
+      imap.hitsByFolder['INBOX'] = [9001, 5000, 9999]; // stored, old, newer than synced
+      imap.hitsByFolder['Archive'] = [12];
+      imap.hitsByFolder['Junk'] = [77];
+      imap.selected.clear();
+      final r = await engine.searchRemote('invoice from:amazon');
+
+      expect(r, (imported: 2, failed: 0, error: null));
+      expect(imap.criteriaSeen, everyElement('TEXT "invoice" FROM "amazon"'));
+      expect(imap.fetchedUids['INBOX'], [5000]);
+      expect(imap.fetchedUids['Archive'], [12]);
+      // The sync that runs first selects the Inbox; the search then covers Inbox and Archive.
+      expect(imap.selected, ['INBOX', 'INBOX', 'Archive'], reason: 'Junk and virtual folders are not searched');
+      final ids = db.db.select('SELECT id FROM messages').map((r) => r['id']).toSet();
+      expect(ids, containsAll(['a1_INBOX_5000', 'a1_Archive_12']));
+      expect(ids, isNot(contains('a1_INBOX_9999')));
+      // Imported mail is findable by the local index afterwards.
+      expect(db.db.select("SELECT 1 FROM search_index WHERE search_index MATCH 'Mail'").length, greaterThanOrEqualTo(4));
+      expect(imap.disconnected, isTrue);
+    });
+
+    test('caps the import per folder, newest first', () async {
+      final imap = _FakeImap([_msg(9001, 1)])..folders = folders;
+      final engine = SyncEngine(db: db, accountRepo: repo, imap: imap);
+      await engine.syncAccount('a1');
+      imap.hitsByFolder['Archive'] = [for (var i = 1; i <= 40; i++) i];
+      await engine.searchRemote('mail');
+      expect(imap.fetchedUids['Archive'], [for (var i = 40; i > 15; i--) i]);
+    });
+
+    test('queries only the device knows (is:spam) never reach the server', () async {
+      final imap = _FakeImap([_msg(9001, 1)])..folders = folders;
+      final engine = SyncEngine(db: db, accountRepo: repo, imap: imap);
+      await engine.syncAccount('a1');
+      final before = imap.connects;
+      expect(await engine.searchRemote('is:spam cheap'), (imported: 0, failed: 0, error: null));
+      expect(await engine.searchRemote('   '), (imported: 0, failed: 0, error: null));
+      expect(imap.connects, before);
+    });
+
+    test('an unreachable account is reported, not swallowed', () async {
+      final imap = _FakeImap([_msg(9001, 1)])..folders = folders;
+      final engine = SyncEngine(db: db, accountRepo: repo, imap: imap);
+      db.db.execute("DELETE FROM accounts"); // nothing to search
+      expect(await engine.searchRemote('x'), (imported: 0, failed: 0, error: null));
+      db.db.execute(
+        "INSERT INTO accounts (id, email, display_name, imap_host, imap_port, smtp_host, smtp_port, auth_type, created_at) "
+        "VALUES ('a2', 'b@x.com', 'b', 'h', 993, 's', 587, 'password', '2026-01-01T00:00:00Z')",
+      );
+      final failing = SyncEngine(db: db, accountRepo: AccountRepository(db: db, storage: _NoPasswordStorage()), imap: imap);
+      final failed = await failing.searchRemote('x');
+      expect((failed.imported, failed.failed), (0, 1));
+      expect(failed.error, contains('No saved password'), reason: 'the reason reaches the UI');
+    });
   });
 }

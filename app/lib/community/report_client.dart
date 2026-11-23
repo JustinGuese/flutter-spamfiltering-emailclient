@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:spam_core/spam_core.dart';
 import 'pow.dart';
 import 'app_check.dart';
+import '../api/backend_config.dart';
 import '../app/log.dart';
 
 /// Plain Dio client communicating anonymously with the community API.
@@ -12,7 +13,7 @@ class CommunityReportClient {
 
   CommunityReportClient({
     Dio? dio,
-    this.baseUrl = 'http://localhost:8000',
+    this.baseUrl = backendUrl,
   }) : dio = dio ?? Dio(BaseOptions(
           connectTimeout: const Duration(seconds: 10),
           receiveTimeout: const Duration(seconds: 10),

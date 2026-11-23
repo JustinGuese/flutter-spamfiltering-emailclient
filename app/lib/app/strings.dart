@@ -7,6 +7,34 @@ class AppStrings {
   static const navSearch = 'Search';
   static const navSettings = 'Settings';
 
+  // Search
+  static const searchHint = 'Search mail';
+  static const searchClear = 'Clear';
+  static const searchIncludeSpam = 'Include spam';
+  static const searchPromptTitle = 'Find anything.';
+  static const searchPromptBody =
+      'Searches subjects, senders and message text on this device, then asks your mail server for older mail.';
+  static const searchTryTitle = 'Narrow it down';
+  static const searchExamples = [
+    'from:amazon',
+    'subject:invoice',
+    'is:unread',
+    'has:attachment',
+    'after:2026-01-01',
+    '"exact phrase"',
+  ];
+  static const searchNoResultsTitle = 'Nothing found.';
+  static const searchNoResultsBody = 'Try fewer words, or include spam.';
+  static const searchServerSearching = 'Searching your mail server…';
+  static const searchServerNone = 'Nothing more on the server';
+  static String searchServerFailed(String? reason) => reason == null || reason.isEmpty
+      ? 'Server search failed. Showing mail on this device.'
+      : 'Server search failed: $reason';
+  static const searchServerRetry = 'Retry';
+  static String searchServerAdded(int n) => 'Added $n from the server';
+  static String searchResultCount(int n, int limit) =>
+      n >= limit ? 'Best $n matches' : (n == 1 ? '1 match' : '$n matches');
+
   // Mailboxes
   static const folderInbox = 'Inbox';
   static const folderSent = 'Sent';

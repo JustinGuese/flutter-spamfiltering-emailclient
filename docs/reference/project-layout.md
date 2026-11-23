@@ -35,21 +35,24 @@ The client email application built with Flutter and Riverpod.
 | `lib/app/` | Application root lifecycle: `app.dart`, `bootstrap.dart`, `router.dart`, `log.dart`, plus the user-facing string tables `strings.dart` and `ui_strings.dart`. |
 | `lib/community/` | Anonymous community reporting: `report_client.dart`, `blocklist_sync.dart`, `pow.dart` (proof of work), `app_check.dart`. |
 | `lib/db/` | On-device SQLite persistence: `database.dart` (opens the file and creates the schema with plain SQL). `tables.dart` is an unused Drift-style declaration of the same schema. |
-| `lib/filter/` | Bridge between app and `spam_core`: `filter_service.dart` (classify and persist verdicts), `verdict_controller.dart` (user verdicts and training), `token_store_drift.dart` (SQLite-backed token counts), `cold_start.dart`, `imap_flags.dart`. |
+| `lib/filter/` | Bridge between app and `spam_core`: `filter_service.dart` (classify and persist verdicts), `verdict_controller.dart` (user verdicts and training), `token_store_drift.dart` (SQLite-backed token counts), `protection_stats.dart` (replays stored classifications for the protection screen), `cold_start.dart`, `imap_flags.dart`. |
 | `lib/funnel/` | Onboarding, permissions, and feature telemetry configuration (`funnel_config.dart`). |
-| `lib/mail/` | IMAP and SMTP protocol engine: `sync_engine.dart`, `imap_service.dart`, `smtp_service.dart`, `reply_builder.dart` (Reply / Reply All / Forward drafts), `account_repository.dart`, `autodiscover.dart`, `mail_auth.dart`, `html_sanitizer.dart`, `html_to_text.dart`. |
+| `lib/mail/` | IMAP and SMTP protocol engine: `sync_engine.dart` (account sync and `searchRemote`, the server-side search), `imap_service.dart` (includes `searchUids` / `fetchByUids`), `smtp_service.dart` (includes `buildOutgoingMessage`), `attachments.dart` (attachment extraction, safe file names, the download cache, the outgoing-file model), `reply_builder.dart` (Reply / Reply All / Forward drafts), `account_repository.dart`, `autodiscover.dart`, `mail_auth.dart`, `html_sanitizer.dart`, `html_to_text.dart`. |
 | `lib/platform/` | Native platform abstraction: `platform_services.dart` (the contract plus shared UI-state providers), `native_services.dart` (iOS, Android, macOS), `desktop_services.dart` (Windows, Linux). |
 | `lib/premium/` | Pro features: `filter_sync.dart` (E2EE CRDT PN-counters), `crdt_counters.dart`, `sync_key.dart`, `onnx_scorer.dart`, `model_downloader.dart`. |
+| `lib/search/` | Search tab logic: `search_query.dart` (parses the search box into an FTS5 `MATCH` expression, SQL filters and IMAP `SEARCH` criteria) and `search_service.dart` (runs it against the `search_index` table and ranks with BM25). |
 | `lib/theme/` | Ledger Desk design system: `app_theme.dart`, `app_brand.dart`, `app_type.dart`. |
 | `lib/ui/` | Flutter widget views and components: |
 | ├── `account_setup/` | IMAP/SMTP account connection wizard. |
 | ├── `common/` | Reusable UI widgets: `formats.dart`, `mail_queries.dart`, `app_parts.dart`. |
-| ├── `compose/` | Email composer (`compose_view.dart`), optionally prefilled from a reply or forward draft. |
+| ├── `compose/` | Email composer (`compose_view.dart`), optionally prefilled from a reply or forward draft; attaches files and sends them. |
 | ├── `filter/` | Spam inspection: `evidence_sheet.dart`, `verdict_bar.dart`, `ledger_card.dart`, `stamp.dart`, `sharing_notice.dart`. |
 | ├── `mailbox/` | Mailbox folder view and message list: `mailbox_view.dart`, `message_row.dart`. |
 | ├── `onboarding/` | First-run privacy presentation and account setup flow. |
+| ├── `protection/` | "Your protection" full-screen view opened from the sidebar filter card: `protection_view.dart` (tabs, caught list, learned), `protection_story.dart` (the four-stage replay), `pro_panel.dart` (Pro stage and upgrade card). |
+| ├── `search/` | The Search tab: `search_view.dart` (search box, results list, server-search status, reader pane). |
 | ├── `premium/` | Pro upgrade, device pairing, and subscription UI (`premium_gate.dart`, `sync_tile.dart`). |
-| ├── `reader/` | Message reading pane (Reply / Reply All / Forward buttons, full-screen view) with remote image blocker: `reader_view.dart`, `image_block_banner.dart`. |
+| ├── `reader/` | Message reading pane (Reply / Reply All / Forward buttons, full-screen view) with remote image blocker: `reader_view.dart`, `attachment_strip.dart` (the received files: open, save), `image_block_banner.dart`. |
 | ├── `settings/` | User preferences: `accounts_tile.dart`, `appearance_tile.dart`, `sharing_tile.dart`. |
 | └── `shell/` | Responsive window layouts: `three_pane_layout.dart`, `folders_sidebar.dart`, `nav_shell.dart`. |
 

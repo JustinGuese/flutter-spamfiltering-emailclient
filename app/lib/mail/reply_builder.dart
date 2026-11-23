@@ -1,4 +1,5 @@
 import '../app/strings.dart';
+import 'attachments.dart';
 
 enum ComposeMode { reply, replyAll, forward }
 
@@ -14,6 +15,9 @@ class ComposeDraft {
   /// headers. Null for forwards (a forward starts a new thread).
   final String? inReplyTo;
 
+  /// Files that start attached: the original's attachments on a forward.
+  final List<OutgoingAttachment> attachments;
+
   const ComposeDraft({
     this.accountId,
     this.to = const [],
@@ -21,6 +25,7 @@ class ComposeDraft {
     this.subject = '',
     this.body = '',
     this.inReplyTo,
+    this.attachments = const [],
   });
 }
 
@@ -51,6 +56,7 @@ ComposeDraft buildDraft({
   required String dateText,
   required String textBody,
   String? messageId,
+  List<OutgoingAttachment> attachments = const [],
 }) {
   final own = accountEmail.trim().toLowerCase();
   final seen = <String>{own};
@@ -72,7 +78,7 @@ ComposeDraft buildDraft({
         '${AppStrings.headerTo}: ${to.join(', ')}\n'
         '${cc.isEmpty ? '' : '${AppStrings.headerCc}: ${cc.join(', ')}\n'}'
         '\n$textBody';
-    return ComposeDraft(accountId: accountId, subject: subjectLine, body: body);
+    return ComposeDraft(accountId: accountId, subject: subjectLine, body: body, attachments: attachments);
   }
 
   // Answering a message you sent yourself (Sent folder) goes to its recipients.
