@@ -10,6 +10,7 @@ import '../premium/sync_tile.dart';
 import 'accounts_tile.dart';
 import 'appearance_tile.dart';
 import 'sharing_tile.dart';
+import 'unsubscribe_tile.dart';
 
 class SettingsView extends StatelessWidget {
   const SettingsView({super.key});
@@ -22,7 +23,7 @@ class SettingsView extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: const [
           _Section(UiStrings.settingsAccounts, [AccountsTile()]),
-          _Section(UiStrings.settingsPrivacy, [CommunitySharingTile()]),
+          _Section(UiStrings.settingsPrivacy, [CommunitySharingTile(), UnsubscribeTile()]),
           _Section(UiStrings.settingsPro, [AppSubscriptionSection(), PremiumSyncTile()]),
           _Section(UiStrings.settingsAppearance, [AppearanceTile()]),
           DfVersionFooter(

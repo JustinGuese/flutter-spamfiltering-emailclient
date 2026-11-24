@@ -115,8 +115,16 @@ flowchart TD
   When a user reclassifies a message (e.g., marks an inbox email as spam), `VerdictController` updates token frequencies in the local SQLite `tokens` table via `TokenStoreDrift.apply()`. If the user moves a message out of Junk back to Inbox, the previous spam counts are decremented and ham counts incremented.
 - **IMAP Synchronization**:
   Flag updates (`$Spam`, `$NotSpam`) and IMAP `MOVE` commands execute against the mail server. If the device is offline, operations are queued in `pending_imap_actions` for replay.
-- **5-Second Undo Grace Window**:
-  An active `UndoRecord` holds an undo timer. If the user accidentally reclassifies a message, clicking **Undo** immediately reverts token adjustments and restores the message to its prior folder.
+- **8-Second Undo Grace Window**:
+  An active `UndoRecord` holds an undo timer (8 seconds). If the user accidentally reclassifies a message, clicking **Undo** immediately reverts token adjustments and restores the message to its prior folder.
+- **Auto-Unsubscribe on Spam (`app/lib/mail/unsubscribe_service.dart`)**:
+  When a user marks an email as spam, `VerdictController` schedules an automatic unsubscribe after a 10-second delay (buffering the 8-second undo window):
+  - **Cancel on Undo**: Clicking **Undo** or assigning any non-spam verdict cancels the pending unsubscribe timer. An undo of a ham verdict that reverts to spam does not schedule an unsubscribe.
+  - **Spam Verdict Only**: Unsubscribe is never automated during background sync classification; it requires an explicit user spam verdict to prevent silent cancellation of wanted mail on false positives or verifying email liveness to spammers.
+  - **Authentication Guard**: Automated verdict unsubscribe requires verified sender authentication (`dmarc=pass` or `dkim=pass` extracted from `Authentication-Results` at sync and stored in `messages.sender_auth_pass`). Unauthenticated senders are skipped.
+  - **Execution Priority**: Uses RFC 8058 One-Click HTTPS POST (`List-Unsubscribe-Post: List-Unsubscribe=One-Click`) if available; otherwise falls back to RFC 2369 mailto. Plain HTTP links without one-click are never followed.
+  - **Comprehensive Safety Guards**: SSRF protection (HTTPS port 443 only, pre-resolved public IPs, no internal/private/CGNAT/ULA IPs, no redirects followed), request hygiene (no cookies/credentials, generic user-agent), mailto safety (single recipient, no CRLF/header injection), 30-day idempotency deduplication per sender domain, 24-hour failure backoff (max 3 retries), self-domain check, and a 20 attempt/24h rate cap.
+  - **User Controls**: Toggleable via the `auto_unsubscribe` switch in Settings (default ON). When disabled, marking spam does not schedule an unsubscribe. For newsletters and auto-classified messages, the message reader provides an on-demand **Unsubscribe** button (bypassing only the sender authentication guard).
 
 ---
 

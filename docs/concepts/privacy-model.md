@@ -20,6 +20,8 @@ The following table itemizes what data crosses network boundaries versus what re
 | **Bayes word dictionaries & frequencies** | *Never leaves device* | N/A | Kept in local SQLite database |
 | **E2EE sync master key (256-bit)** | *Never leaves device* | N/A | Stored in OS-level hardware keystore |
 | **IMAP/SMTP mailbox traffic** | User's configured mail server | TLS 1.2+ encrypted socket | Required for email sync & sending |
+| **Auto-unsubscribe (RFC 8058 One-Click)** | Sender's published unsubscribe URL | HTTPS POST (port 443, no redirects) | Fired when marking email as spam (if authenticated sender and setting enabled, after 10 s undo window) or manual Unsubscribe button. Never sent to DataFortress backend. |
+| **Auto-unsubscribe (RFC 2369 mailto)** | User's configured mail server to sender's unsubscribe address | TLS 1.2+ encrypted SMTP | Sent from user's account when RFC 8058 is unavailable. Never sent to DataFortress backend. |
 | **Anonymous spam fingerprints** | Hosted community API | HTTPS / Zero-knowledge payload | Only when community sharing is enabled |
 | **Encrypted CRDT token blobs** | Hosted sync storage | HTTPS / 256-bit AES-GCM encrypted | Only for Pro users with E2EE sync enabled |
 | **Model weights download** | Hosted model distribution | HTTPS GET | Only for Pro users with neural model enabled |
@@ -100,5 +102,25 @@ For Pro users synchronizing filter training state across multiple devices, synch
 - **Storage**: The raw key is written exclusively to platform hardware secure storage under key `e2ee_filter_sync_key_256`.
 - **Zero-Knowledge Backend**: The hosted backend storage server receives and stores only encrypted ciphertext blobs. The server never holds, sees, or has the mathematical means to derive the encryption key.
 - **Recovery & Transfer**: Cross-device key exchange is performed manually by the user via a 24-word recovery phrase or direct hex export.
+
+---
+
+## Safe Unsubscribe Architecture (RFC 8058 & RFC 2369)
+
+When unsubscribing from mailing lists—either automatically upon marking an email as spam or manually via the reader button—the client strictly respects privacy and local network boundaries:
+
+- **Direct Communication Only**: Requests are sent directly to the sender's published endpoint (for RFC 8058 One-Click HTTPS POST) or dispatched via the user's own SMTP account (for RFC 2369 mailto). **No unsubscribe telemetry or metadata ever passes through the DataFortress backend.**
+- **Plain HTTP Request Hygiene**: HTTPS POST requests use a clean `Dio` client without cookies, platform tokens, authorization headers, or device identifiers, presenting a generic `User-Agent: DataFortress-Mail/1.0` and body `List-Unsubscribe=One-Click`.
+- **SSRF and Local Network Defense**:
+  - Scheme must be HTTPS on standard port 443; URLs containing userinfo or non-default ports are blocked.
+  - Hostnames matching `localhost`, `.local`, or `.internal` are rejected.
+  - Hostnames are resolved through DNS prior to connection: every resolved address is checked, and any private (RFC 1918), loopback (127.0.0.0/8, `::1`), link-local (169.254.0.0/16, `fe80::/10`), CGNAT (100.64.0.0/10), or ULA (`fc00::/7`) address triggers immediate rejection.
+  - HTTP redirects are not followed (`followRedirects: false`) to avoid redirection into internal networks or tracking services.
+- **Mailto Safety**: Mailto requests permit exactly one recipient address without secondary parameters (`cc`, `bcc`) or CR/LF characters (header injection protection). The message is not saved to the IMAP Sent mailbox, and sending to the user's own account address is prohibited.
+- **Authentication Requirement for Automation**: Automatic unsubscribe on spam verdict requires verified sender authentication (`dmarc=pass` or `dkim=pass` in `Authentication-Results`). Unauthenticated or spoofed senders are never contacted automatically. (The reader's manual Unsubscribe button bypasses only this authentication requirement).
+- **Grace Window & Undo**: Automated unsubscribe fires only after a 10-second delay. Since the verdict undo window is 8 seconds, clicking Undo or applying a non-spam verdict cancels the pending action. Undoing a ham verdict that restores spam never triggers unsubscribe.
+- **Idempotency & Rate Limiting**: Capped at 20 attempts per rolling 24 hours across all accounts. Successful actions are deduplicated for 30 days per account and sender domain; failures back off for 24 hours, with a maximum of 3 attempts.
+- **Self-Domain Guard**: Skipped when the sender domain equals the receiving account's domain.
+- **User Off Switch**: Automatic unsubscribe on spam verdict is controlled by the `auto_unsubscribe` setting in Settings (enabled by default).
 
 For full technical specifications on the anonymous community sharing protocol, see the [Privacy Specification](privacy-spec.md).

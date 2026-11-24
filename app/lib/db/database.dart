@@ -64,7 +64,10 @@ class AppDatabase {
         is_flagged INTEGER NOT NULL DEFAULT 0,
         has_attachments INTEGER NOT NULL DEFAULT 0,
         classification_label TEXT NOT NULL DEFAULT 'inbox',
-        spam_score REAL NOT NULL DEFAULT 0.0
+        spam_score REAL NOT NULL DEFAULT 0.0,
+        list_unsubscribe TEXT,
+        list_unsubscribe_post TEXT,
+        sender_auth_pass INTEGER NOT NULL DEFAULT 0
       );
       CREATE TABLE IF NOT EXISTS bodies (
         message_id TEXT PRIMARY KEY,
@@ -124,6 +127,17 @@ class AppDatabase {
         action TEXT NOT NULL,
         target_folder TEXT
       );
+      CREATE TABLE IF NOT EXISTS unsubscribe_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        account_id TEXT NOT NULL,
+        sender_domain TEXT NOT NULL,
+        message_id TEXT,
+        method TEXT,
+        status TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_unsubscribe_log_account_sender
+        ON unsubscribe_log (account_id, sender_domain);
     ''');
     _migrate();
     _createSearchIndex();
@@ -172,6 +186,48 @@ class AppDatabase {
       // Mail synced before this column existed keeps '' until it is re-fetched.
       db.execute("ALTER TABLE messages ADD COLUMN cc_addrs TEXT NOT NULL DEFAULT ''");
     }
+    if (!messageCols.contains('list_unsubscribe')) {
+      db.execute('ALTER TABLE messages ADD COLUMN list_unsubscribe TEXT');
+    }
+    if (!messageCols.contains('list_unsubscribe_post')) {
+      db.execute('ALTER TABLE messages ADD COLUMN list_unsubscribe_post TEXT');
+    }
+    if (!messageCols.contains('sender_auth_pass')) {
+      db.execute('ALTER TABLE messages ADD COLUMN sender_auth_pass INTEGER NOT NULL DEFAULT 0');
+    }
+
+    db.execute('''
+      CREATE TABLE IF NOT EXISTS unsubscribe_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        account_id TEXT NOT NULL,
+        sender_domain TEXT NOT NULL,
+        message_id TEXT,
+        method TEXT,
+        status TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_unsubscribe_log_account_sender
+        ON unsubscribe_log (account_id, sender_domain);
+    ''');
+  }
+
+  /// Returns the value for setting [key], or null if absent.
+  String? getSetting(String key) {
+    final rows = db.select('SELECT value FROM settings WHERE key = ?', [key]);
+    return rows.isEmpty ? null : rows.first['value'] as String?;
+  }
+
+  /// Sets the value for setting [key].
+  void setSetting(String key, String value) {
+    db.execute('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)', [key, value]);
+  }
+
+  /// Whether auto-unsubscribe on spam verdict is enabled.
+  /// Defaults to true when absent.
+  bool get isAutoUnsubscribeEnabled {
+    final val = getSetting('auto_unsubscribe');
+    if (val == null) return true;
+    return val.toLowerCase() != 'false' && val != '0';
   }
 
   void close() => db.close();

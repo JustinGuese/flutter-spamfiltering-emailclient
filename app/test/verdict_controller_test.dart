@@ -1,9 +1,11 @@
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spam_core/spam_core.dart';
 import 'package:spamfiltering_emailclient/community/report_client.dart';
 import 'package:spamfiltering_emailclient/db/database.dart';
 import 'package:spamfiltering_emailclient/filter/token_store_drift.dart';
 import 'package:spamfiltering_emailclient/filter/verdict_controller.dart';
+import 'package:spamfiltering_emailclient/mail/unsubscribe_service.dart';
 
 /// Never touches the network: a spam verdict reports to the community backend,
 /// which now defaults to the live server.
@@ -18,6 +20,19 @@ class _FakeReports extends CommunityReportClient {
 
   @override
   Future<bool> voteHam(List<int> hashes) async => true;
+}
+
+class _FakeUnsubscribeService implements UnsubscribeService {
+  final List<({String messageId, UnsubscribeTrigger trigger})> calls = [];
+
+  @override
+  Future<UnsubscribeOutcome> unsubscribeForMessage(
+    String messageId, {
+    required UnsubscribeTrigger trigger,
+  }) async {
+    calls.add((messageId: messageId, trigger: trigger));
+    return const UnsubscribeOutcome(UnsubscribeStatus.sent, method: 'one_click');
+  }
 }
 
 void main() {
@@ -62,5 +77,122 @@ void main() {
 
     expect(commits, 1);
     expect(db.db.select("SELECT classification_label l FROM messages WHERE id = 'm'").first['l'], 'inbox');
+  });
+
+  test('1. Spam click schedules unsubscribe after delay', () {
+    fakeAsync((async) {
+      final unsubService = _FakeUnsubscribeService();
+      final controller = VerdictController(
+        db: db,
+        tokenStore: TokenStoreDrift(db),
+        reportClient: _FakeReports(),
+        unsubscribeService: unsubService,
+      );
+
+      controller.applyVerdict(messageId: 'm', newLabel: Label.spam);
+      async.flushMicrotasks();
+
+      expect(controller.pendingUnsubscribeTimer, isNotNull);
+      expect(controller.pendingUnsubscribeMessageId, 'm');
+      expect(unsubService.calls, isEmpty);
+
+      // Fast-forward past undo window (8s) but before 10s
+      async.elapse(const Duration(seconds: 9));
+      expect(unsubService.calls, isEmpty);
+
+      // Fast-forward past 10s
+      async.elapse(const Duration(seconds: 1));
+      expect(unsubService.calls.length, 1);
+      expect(unsubService.calls.first.messageId, 'm');
+      expect(unsubService.calls.first.trigger, UnsubscribeTrigger.verdict);
+      expect(controller.pendingUnsubscribeTimer, isNull);
+    });
+  });
+
+  test('2. Undo cancels scheduled unsubscribe', () {
+    fakeAsync((async) {
+      final unsubService = _FakeUnsubscribeService();
+      final controller = VerdictController(
+        db: db,
+        tokenStore: TokenStoreDrift(db),
+        reportClient: _FakeReports(),
+        unsubscribeService: unsubService,
+      );
+
+      controller.applyVerdict(messageId: 'm', newLabel: Label.spam);
+      async.flushMicrotasks();
+
+      expect(controller.pendingUnsubscribeTimer, isNotNull);
+
+      // User triggers undo within the 8s window
+      async.elapse(const Duration(seconds: 5));
+      controller.undo();
+      async.flushMicrotasks();
+
+      expect(controller.pendingUnsubscribeTimer, isNull);
+
+      // Advance time past 10s total
+      async.elapse(const Duration(seconds: 10));
+      expect(unsubService.calls, isEmpty);
+    });
+  });
+
+  test('3. Non-spam verdict cancels pending unsubscribe', () {
+    fakeAsync((async) {
+      final unsubService = _FakeUnsubscribeService();
+      final controller = VerdictController(
+        db: db,
+        tokenStore: TokenStoreDrift(db),
+        reportClient: _FakeReports(),
+        unsubscribeService: unsubService,
+      );
+
+      controller.applyVerdict(messageId: 'm', newLabel: Label.spam);
+      async.flushMicrotasks();
+
+      expect(controller.pendingUnsubscribeTimer, isNotNull);
+
+      // Mark as ham or inbox before 10s
+      async.elapse(const Duration(seconds: 3));
+      controller.applyVerdict(messageId: 'm', newLabel: Label.ham);
+      async.flushMicrotasks();
+
+      expect(controller.pendingUnsubscribeTimer, isNull);
+
+      // Advance past 10s
+      async.elapse(const Duration(seconds: 10));
+      expect(unsubService.calls, isEmpty);
+    });
+  });
+
+  test('4. Undo of a ham verdict (which might revert to spam) does not schedule unsubscribe', () {
+    fakeAsync((async) {
+      // Setup message with initial classification 'spam'
+      db.db.execute("UPDATE messages SET classification_label = 'spam' WHERE id = 'm'");
+
+      final unsubService = _FakeUnsubscribeService();
+      final controller = VerdictController(
+        db: db,
+        tokenStore: TokenStoreDrift(db),
+        reportClient: _FakeReports(),
+        unsubscribeService: unsubService,
+      );
+
+      // User marks message as ham (previous label was spam)
+      controller.applyVerdict(messageId: 'm', newLabel: Label.ham);
+      async.flushMicrotasks();
+      expect(controller.pendingUnsubscribeTimer, isNull);
+
+      // User undos the ham verdict -> reverts to spam
+      controller.undo();
+      async.flushMicrotasks();
+
+      // Ensure that reverting to spam via undo does NOT schedule auto-unsubscribe
+      expect(controller.pendingUnsubscribeTimer, isNull);
+      expect(controller.pendingUnsubscribeMessageId, isNull);
+
+      async.elapse(const Duration(seconds: 15));
+      expect(unsubService.calls, isEmpty);
+    });
   });
 }

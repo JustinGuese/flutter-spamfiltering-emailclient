@@ -9,6 +9,7 @@ import '../db/database.dart';
 import '../mail/account_repository.dart';
 import '../mail/imap_service.dart';
 import '../mail/sync_engine.dart';
+import '../mail/unsubscribe_service.dart';
 import '../premium/crdt_counters.dart';
 import '../premium/filter_sync.dart';
 import 'imap_flags.dart';
@@ -37,6 +38,7 @@ class VerdictController {
   final AccountRepository? accountRepo;
   final CommunityReportClient? reportClient;
   final FilterSyncService? filterSyncService;
+  final UnsubscribeService? unsubscribeService;
   final bool isPro;
   final bool isSignedIn;
   final void Function()? onFirstSpamNotice;
@@ -47,6 +49,9 @@ class VerdictController {
   UndoRecord? _activeUndo;
   DateTime? _lastUploadTime;
   Timer? _debounceTimer;
+  Timer? _pendingUnsubscribeTimer;
+  String? _pendingUnsubscribeMessageId;
+  bool _isExecutingUndo = false;
 
   VerdictController({
     required this.db,
@@ -54,6 +59,7 @@ class VerdictController {
     this.accountRepo,
     this.reportClient,
     this.filterSyncService,
+    this.unsubscribeService,
     this.isPro = false,
     this.isSignedIn = false,
     this.onFirstSpamNotice,
@@ -61,6 +67,8 @@ class VerdictController {
   });
 
   UndoRecord? get activeUndo => _activeUndo;
+  Timer? get pendingUnsubscribeTimer => _pendingUnsubscribeTimer;
+  String? get pendingUnsubscribeMessageId => _pendingUnsubscribeMessageId;
 
   Future<int> applyVerdict({
     required String messageId,
@@ -127,6 +135,8 @@ class VerdictController {
     _handleCommunityReporting(normalized, prevLabel, newLabel);
     _triggerPremiumSyncDebounced();
 
+    _handleUnsubscribeScheduling(messageId, newLabel, isUndo: _isExecutingUndo);
+
     _activeUndo?.timer.cancel();
     _activeUndo = UndoRecord(
       messageId: messageId,
@@ -136,6 +146,40 @@ class VerdictController {
       timer: Timer(const Duration(seconds: 8), () => _activeUndo = null),
     );
     return similarCount;
+  }
+
+  void _handleUnsubscribeScheduling(String messageId, Label newLabel, {required bool isUndo}) {
+    // Any non-spam verdict cancels pending unsubscribe
+    if (newLabel != Label.spam) {
+      _cancelPendingUnsubscribe();
+      return;
+    }
+
+    // Applying spam as the undo of a ham verdict does NOT schedule auto-unsubscribe.
+    if (isUndo) {
+      _cancelPendingUnsubscribe();
+      return;
+    }
+
+    // Spam click schedules unsubscribe after 10 seconds.
+    _cancelPendingUnsubscribe();
+    if (unsubscribeService != null) {
+      _pendingUnsubscribeMessageId = messageId;
+      _pendingUnsubscribeTimer = Timer(const Duration(seconds: 10), () {
+        unsubscribeService?.unsubscribeForMessage(
+          messageId,
+          trigger: UnsubscribeTrigger.verdict,
+        );
+        _pendingUnsubscribeTimer = null;
+        _pendingUnsubscribeMessageId = null;
+      });
+    }
+  }
+
+  void _cancelPendingUnsubscribe() {
+    _pendingUnsubscribeTimer?.cancel();
+    _pendingUnsubscribeTimer = null;
+    _pendingUnsubscribeMessageId = null;
   }
 
   void _handleCommunityReporting(Normalized normalized, Label prev, Label next) {
@@ -245,11 +289,17 @@ class VerdictController {
   }
 
   void undo() {
+    _cancelPendingUnsubscribe();
     final record = _activeUndo;
     if (record == null) return;
     record.timer.cancel();
     _activeUndo = null;
-    applyVerdict(messageId: record.messageId, newLabel: record.previousLabel);
+    _isExecutingUndo = true;
+    try {
+      applyVerdict(messageId: record.messageId, newLabel: record.previousLabel);
+    } finally {
+      _isExecutingUndo = false;
+    }
   }
 }
 
@@ -269,6 +319,7 @@ final verdictControllerProvider = Provider<VerdictController>((ref) => VerdictCo
   accountRepo: ref.watch(accountRepositoryProvider),
   reportClient: CommunityReportClient(),
   filterSyncService: ref.watch(filterSyncServiceProvider),
+  unsubscribeService: ref.watch(unsubscribeServiceProvider),
   isPro: ref.watch(dfEffectivePremiumProvider),
   isSignedIn: ref.watch(currentUserProvider) != null,
   onFirstSpamNotice: () => ref.read(sharingNoticeVisibleProvider.notifier).show(),
