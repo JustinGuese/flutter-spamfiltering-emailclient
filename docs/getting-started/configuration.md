@@ -61,6 +61,7 @@ The client codebase defines these compile-time environment flags using `String.f
 
   On iOS and macOS the reversed-client-ID scheme must also be listed under `CFBundleURLSchemes` in `Info.plist`; see [Platform notes](../contributing/platform-notes.md#oauth-sign-in-and-notifications-per-platform).
 - **Provider-side requirements** (outside this repo): Google classifies `https://mail.google.com/` as a restricted scope, so a public release needs Google's app verification; until then the consent screen is limited to test users and refresh tokens are short-lived. Many Microsoft work or school tenants disable IMAP or SMTP AUTH, in which case only personal outlook.com, hotmail and live accounts connect.
+- **Local values**: copy `app/oauth.defines.example.json` to `app/oauth.defines.json` (gitignored, never commit it) and fill in your own client IDs. Build with `flutter run --dart-define-from-file=oauth.defines.json`. In CI, pass the IDs and `GOOGLE_OAUTH_CLIENT_SECRET_DESKTOP` as `--dart-define` values from repository secrets. Android debug builds need a client registered with the debug keystore's SHA-1 in `GOOGLE_OAUTH_CLIENT_ID_ANDROID`.
 - **Customization**:
   ```bash
   flutter run -d linux \

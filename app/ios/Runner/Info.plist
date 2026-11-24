@@ -32,6 +32,7 @@
 				<key>CFBundleURLSchemes</key>
 				<array>
 					<string>com.datafortress.spamfilteringemailclient</string>
+					<string>com.googleusercontent.apps.574651208841-8k0bp91uhkfjoufj5h11ralab27bu4bs</string>
 					<string>msauth.com.datafortress.spamfilteringemailclient</string>
 					<string>msauth.$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 					<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
