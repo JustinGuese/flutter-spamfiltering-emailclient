@@ -153,3 +153,5 @@ When developing offline or testing changes across both repositories simultaneous
 Upon initial launch, DataFortress prompts you to add your IMAP/SMTP mail account:
 
 ![Connect Account](../assets/screenshots/connect_account.png)
+
+See [Accounts and Notifications](accounts-and-notifications.md) for Google and Microsoft sign-in and notification settings.

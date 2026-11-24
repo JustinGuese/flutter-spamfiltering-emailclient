@@ -50,6 +50,7 @@ nav:
   - Home: index.md
   - Getting Started:
       - Installation: getting-started/install.md
+      - Accounts and Notifications: getting-started/accounts-and-notifications.md
       - Configuration: getting-started/configuration.md
       - Testing: getting-started/testing.md
   - Concepts:
@@ -69,4 +70,5 @@ nav:
       - Overview: contributing/index.md
       - Design System: contributing/design-system.md
       - Platform Notes: contributing/platform-notes.md
+      - OAuth Setup: contributing/oauth-setup.md
   - Open Source: open-source.md

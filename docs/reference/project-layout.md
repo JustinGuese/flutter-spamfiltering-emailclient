@@ -64,6 +64,10 @@ The client email application built with Flutter and Riverpod.
 - `app/macos/`: macOS Xcode workspace, entitlements for keychain and network access, `MainFlutterWindow.swift`.
 - `app/windows/`: CMake configuration and Win32 window host runner (`main.cpp`, `win32_window.cpp`).
 
+### App Root Files
+
+- `oauth.defines.example.json`: Template for the OAuth client IDs passed with `--dart-define-from-file`. Copy it to `oauth.defines.json` (gitignored) and fill it in; see [OAuth Setup](../contributing/oauth-setup.md).
+
 ### App Assets (`app/assets/`)
 
 - `fonts/`: Bundled SIL OFL typography (`Fraunces.ttf`, `JetBrainsMono.ttf`, `PublicSans.ttf`).
@@ -110,10 +114,10 @@ Command-line tool used to train, evaluate, and generate prior JSON models from e
 
 Material for MkDocs source files:
 - `index.md`: Documentation homepage.
-- `getting-started/`: Installation prerequisites, configuration flags, and testing instructions.
+- `getting-started/`: Installation prerequisites, account and notification guide, configuration flags, and testing instructions.
 - `concepts/`: Deep-dive architectural concepts, privacy model, spam filter internals, community network, and Pro features.
 - `reference/`: Public APIs, HTTP protocol contracts, database tables, and tool CLI flags.
-- `contributing/`: Contribution guidelines, design system rules, and platform-specific compilation notes.
+- `contributing/`: Contribution guidelines, design system rules, platform-specific compilation notes, and Google/Microsoft OAuth setup.
 - `open-source.md`: Open-core model explanation and third-party license notices.
 
 See also:

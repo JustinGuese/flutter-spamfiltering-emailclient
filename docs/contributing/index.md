@@ -2,7 +2,7 @@
 
 Thank you for your interest in contributing to DataFortress Mail. This document outlines the developer environment setup, coding guidelines, repository layout, and pull request workflow.
 
-For the project's licensing model and open-core breakdown, see the [Open-Core Overview](../open-source.md). For platform-specific compilation details, see the [Platform Notes](platform-notes.md).
+For the project's licensing model and open-core breakdown, see the [Open-Core Overview](../open-source.md). For platform-specific compilation details, see the [Platform Notes](platform-notes.md). To enable Google and Microsoft sign-in in your own build or fork, see [OAuth Setup](oauth-setup.md).
 
 ---
 
