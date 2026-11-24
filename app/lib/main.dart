@@ -1,10 +1,12 @@
 import 'dart:io';
 import 'dart:ui' show PlatformDispatcher;
+import 'package:df_notifications/df_notifications.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app/app.dart';
 import 'app/log.dart';
 import 'db/database.dart';
+import 'notifications/mail_notification_service.dart';
 import 'platform/platform_services.dart';
 import 'platform/native_services.dart';
 import 'platform/desktop_services.dart';
@@ -53,6 +55,14 @@ Future<void> main() async {
         databaseProvider.overrideWithValue(db),
         platformServicesProvider.overrideWithValue(services),
         apiClientOverride,
+        dfNotificationConfigProvider.overrideWithValue(
+          const DfNotificationConfig(
+            windowsAppName: 'DataFortress Mail',
+            windowsAppUserModelId: 'DataFortress.Mail',
+            windowsGuid: 'f87a8b60-7058-47bc-9df2-501b44ecdcbb',
+            defaultChannel: kMailNotificationChannel,
+          ),
+        ),
         ...platformOverrides,
       ],
       child: const DataFortressMailApp(),

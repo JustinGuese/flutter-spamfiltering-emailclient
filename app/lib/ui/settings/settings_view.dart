@@ -4,12 +4,13 @@ import 'package:df_theme/df_theme.dart';
 import '../../app/strings.dart';
 import '../../app/ui_strings.dart';
 import '../../theme/app_type.dart';
-import '../common/app_parts.dart';
 import '../premium/subscription_section.dart';
 import '../premium/sync_tile.dart';
 import 'accounts_tile.dart';
 import 'appearance_tile.dart';
+import 'notifications_tile.dart';
 import 'sharing_tile.dart';
+import 'unsubscribe_tile.dart';
 import 'unsubscribe_tile.dart';
 
 class SettingsView extends StatelessWidget {
@@ -18,50 +19,55 @@ class SettingsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DfSettingsScaffold(
-      title: Text(AppStrings.settingsTitle, style: AppType.display(context.df.colors.textPrimary, size: 24, weight: 600, letterSpacing: -0.5)),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        children: const [
-          _Section(UiStrings.settingsAccounts, [AccountsTile()]),
-          _Section(UiStrings.settingsPrivacy, [CommunitySharingTile(), UnsubscribeTile()]),
-          _Section(UiStrings.settingsPro, [AppSubscriptionSection(), PremiumSyncTile()]),
-          _Section(UiStrings.settingsAppearance, [AppearanceTile()]),
-          DfVersionFooter(
-            version: '1.0.0',
-            buildNumber: '1',
-          ),
-        ],
+      title: Text(
+        AppStrings.settingsTitle,
+        style: AppType.display(
+          context.df.colors.textPrimary,
+          size: 24,
+          weight: 600,
+          letterSpacing: -0.5,
+        ),
       ),
-    );
-  }
-}
-
-/// Eyebrow + a rounded card holding one or more tiles.
-class _Section extends StatelessWidget {
-  final String title;
-  final List<Widget> tiles;
-  const _Section(this.title, this.tiles);
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.df.colors;
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 680),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 4),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Padding(padding: const EdgeInsets.fromLTRB(6, 0, 0, 10), child: Eyebrow(title)),
-            Container(
-              decoration: BoxDecoration(
-                color: c.surface,
-                borderRadius: BorderRadius.circular(context.df.shape.md),
-                border: Border.all(color: c.hairline),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 680),
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            children: const [
+              DfSettingsGroup(
+                title: UiStrings.settingsAccounts,
+                children: [AccountsTile()],
               ),
-              clipBehavior: Clip.antiAlias,
-              child: Column(children: tiles),
-            ),
-          ]),
+              DfSettingsGroup(
+                title: UiStrings.settingsNotifications,
+                children: [NotificationsTile()],
+              ),
+              DfSettingsGroup(
+                title: UiStrings.settingsPrivacy,
+                children: [CommunitySharingTile(), UnsubscribeTile()],
+              ),
+              DfSettingsGroup(
+                title: UiStrings.settingsPro,
+                children: [AppSubscriptionSection(), PremiumSyncTile()],
+              ),
+              DfSettingsGroup(
+                title: UiStrings.settingsAppearance,
+                children: [AppearanceTile()],
+              ),
+              DfLegalLinksSection(
+                title: UiStrings.settingsLegal,
+                privacyPolicyUrl:
+                    'https://justinguese.github.io/flutter-spamfiltering-emailclient/concepts/privacy-model/',
+                websiteUrl:
+                    'https://justinguese.github.io/flutter-spamfiltering-emailclient/',
+                showLicenses: true,
+              ),
+              DfVersionFooter(
+                version: '1.0.0',
+                buildNumber: '1',
+              ),
+            ],
+          ),
         ),
       ),
     );

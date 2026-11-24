@@ -99,6 +99,16 @@ dependencies:
       url: https://github.com/JustinGuese/df_flutter_shared.git
       path: df_api
       ref: main
+  df_notifications:
+    git:
+      url: https://github.com/JustinGuese/df_flutter_shared.git
+      path: df_notifications
+      ref: main
+  df_oauth:
+    git:
+      url: https://github.com/JustinGuese/df_flutter_shared.git
+      path: df_oauth
+      ref: main
 
   material_ui: any
 dev_dependencies:

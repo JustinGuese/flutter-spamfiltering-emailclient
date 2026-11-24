@@ -117,7 +117,7 @@ class AppStrings {
   static const setupAutoDetecting = 'Auto-detecting server settings...';
   static const setupManualConfig = 'Manual configuration';
   static const setupAppPasswordNote =
-      'Gmail, Yahoo, and iCloud require an app-specific password.';
+      'Yahoo and iCloud require an app-specific password.';
   static const setupSuccess = 'Account connected successfully';
   static const setupFailed = 'Failed to connect. Check credentials.';
 
@@ -163,9 +163,6 @@ class AppStrings {
   static const onbPage3Title = 'Collective Shield';
   static const onbPage3Body =
       'Block spam campaigns anonymously with zero tracking IDs, zero account linkage, and zero IP logs.';
-  static const onbSkip = 'Skip';
-  static const onbContinue = 'Continue';
-  static const onbGetStarted = 'Get Started';
 
   // Premium / Funnel & Filter Sync
   static const proTitle = 'DataFortress Pro';

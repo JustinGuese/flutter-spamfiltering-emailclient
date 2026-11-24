@@ -23,7 +23,7 @@ Stores configured IMAP/SMTP mail accounts.
 | `imapPort` | `IntColumn` | | IMAP port (e.g. 993). |
 | `smtpHost` | `TextColumn` | | SMTP server hostname. |
 | `smtpPort` | `IntColumn` | | SMTP port (e.g. 465 or 587). |
-| `authType` | `TextColumn` | `default: 'password'` | Authentication type (`password` or `oauth2`). |
+| `authType` | `TextColumn` | `default: 'password'` | Authentication type: `password`, `oauth_google` or `oauth_microsoft`. |
 | `createdAt` | `DateTimeColumn` | | Account creation timestamp. |
 
 ---
@@ -146,11 +146,14 @@ Key-value preferences and synchronization metadata.
 | `key` | `TextColumn` | `primaryKey` | Setting identifier (e.g. `blocklist_version`, `blocklist_last_sync`, `auto_unsubscribe`). |
 | `value` | `TextColumn` | | Value string. |
 
-Common settings stored here:
-- `blocklist_version`: Current synchronized version of the community spam blocklist.
-- `blocklist_last_sync`: ISO-8601 UTC timestamp of last successful blocklist fetch.
-- `auto_unsubscribe`: Boolean string (`'true'` or `'false'`, defaults to `'true'` when absent). Governs whether marking an email as spam automatically triggers RFC 8058 / RFC 2369 unsubscribe actions.
-- `sharing_notice_seen`: Whether the initial community sharing notice dialog has been acknowledged.
+Keys written by the notification feature (`app/lib/notifications/notify_prefs.dart`):
+
+| Key | Values | Meaning |
+|---|---|---|
+| `notify_mode` | `off`, `instant`, `every5min`, `hourly` | The chosen notification mode. Absent means `instant`. |
+| `notify_permission_blocked` | `true` / `false` | The OS refused notification permission, so Settings shows a "blocked in system settings" hint. |
+| `notify_soft_asked` | `true` / `false` | The in-app notification explanation was already offered once. |
+| `auto_unsubscribe` | `true` / `false` | Whether marking a message as spam also unsubscribes from the sender (RFC 8058 one-click or mailto). Absent means `true`. |
 
 ---
 

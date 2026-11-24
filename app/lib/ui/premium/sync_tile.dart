@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:df_funnel/df_funnel.dart';
+import 'package:df_settings/df_settings.dart';
 import 'package:df_theme/df_theme.dart';
 import '../../app/strings.dart';
 import '../../db/database.dart';
@@ -37,20 +38,15 @@ class PremiumSyncTile extends ConsumerWidget {
     final palette = context.df.colors;
 
     if (!isPro) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: palette.surface,
-          border: Border(bottom: BorderSide(color: palette.hairline)),
+      return DfSettingsTile(
+        title: Text(
+          AppStrings.settingsFilterSync,
+          style: TextStyle(fontWeight: FontWeight.w600, color: palette.textPrimary),
         ),
-        child: ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text(AppStrings.settingsFilterSync, style: TextStyle(fontWeight: FontWeight.w600, color: palette.textPrimary)),
-          subtitle: Text(AppStrings.settingsFilterSyncSub, style: TextStyle(fontSize: 12, color: palette.textSecondary)),
-          trailing: OutlinedButton(
-            onPressed: () => AppUpsellSheet.show(context),
-            child: const Text(AppStrings.proUpgrade, style: TextStyle(fontSize: 12)),
-          ),
+        subtitle: const Text(AppStrings.settingsFilterSyncSub),
+        trailing: OutlinedButton(
+          onPressed: () => AppUpsellSheet.show(context),
+          child: const Text(AppStrings.proUpgrade, style: TextStyle(fontSize: 12)),
         ),
       );
     }
@@ -58,33 +54,22 @@ class PremiumSyncTile extends ConsumerWidget {
     final enabled = ref.watch(premiumSyncEnabledProvider);
     final keyManager = ref.watch(syncKeyManagerProvider);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: palette.surface,
-        border: Border(bottom: BorderSide(color: palette.hairline)),
+    return DfSettingsTile(
+      title: Text(
+        AppStrings.settingsFilterSync,
+        style: TextStyle(
+          fontFamily: 'Public Sans',
+          fontWeight: FontWeight.w600,
+          fontSize: 14,
+          color: palette.textPrimary,
+        ),
       ),
-      child: Column(
+      subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  AppStrings.settingsFilterSync,
-                  style: TextStyle(fontFamily: 'Public Sans', fontWeight: FontWeight.w600, fontSize: 14, color: palette.textPrimary),
-                ),
-              ),
-              Switch(
-                value: enabled,
-                activeThumbColor: palette.brand.base,
-                onChanged: (val) => ref.read(premiumSyncEnabledProvider.notifier).toggle(val),
-              ),
-            ],
-          ),
           const SizedBox(height: 4),
-          Text(AppStrings.settingsFilterSyncSub, style: TextStyle(fontFamily: 'Public Sans', fontSize: 12, color: palette.textSecondary)),
+          const Text(AppStrings.settingsFilterSyncSub),
           const SizedBox(height: 10),
           Row(
             children: [
@@ -102,6 +87,11 @@ class PremiumSyncTile extends ConsumerWidget {
             ],
           ),
         ],
+      ),
+      trailing: Switch(
+        value: enabled,
+        activeThumbColor: palette.brand.base,
+        onChanged: (val) => ref.read(premiumSyncEnabledProvider.notifier).toggle(val),
       ),
     );
   }

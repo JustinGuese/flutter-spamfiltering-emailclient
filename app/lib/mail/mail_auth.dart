@@ -1,3 +1,5 @@
+import 'oauth/oauth_types.dart';
+
 /// Authentication seam for mail protocols (IMAP/SMTP).
 /// Supports simple password credentials and OAuth2 bearer tokens.
 sealed class MailAuth {
@@ -17,8 +19,19 @@ class PasswordMailAuth extends MailAuth {
 class OAuth2MailAuth extends MailAuth {
   final String accessToken;
   final String? refreshToken;
-  const OAuth2MailAuth(this.accessToken, {this.refreshToken});
+  final DateTime? expiresAt;
+  final OAuthProvider provider;
+
+  const OAuth2MailAuth(
+    this.accessToken, {
+    this.refreshToken,
+    this.expiresAt,
+    this.provider = OAuthProvider.google,
+  });
 
   @override
-  String get authType => 'oauth2';
+  String get authType => switch (provider) {
+    OAuthProvider.google => 'oauth_google',
+    OAuthProvider.microsoft => 'oauth_microsoft',
+  };
 }

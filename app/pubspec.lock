@@ -267,14 +267,14 @@ packages:
     source: path
     version: "0.1.0"
   df_notifications:
-    dependency: "direct overridden"
+    dependency: "direct main"
     description:
       path: "../../../df_flutter_shared/df_notifications"
       relative: true
     source: path
     version: "0.1.0"
   df_oauth:
-    dependency: "direct overridden"
+    dependency: "direct main"
     description:
       path: "../../../df_flutter_shared/df_oauth"
       relative: true

@@ -17,7 +17,7 @@ import 'package:spamfiltering_emailclient/platform/platform_services.dart';
 import 'package:spamfiltering_emailclient/theme/app_brand.dart';
 import 'package:spamfiltering_emailclient/ui/account_setup/account_setup_view.dart';
 import 'package:spamfiltering_emailclient/ui/compose/compose_view.dart';
-import 'package:spamfiltering_emailclient/ui/onboarding/onboarding_view.dart';
+import 'package:spamfiltering_emailclient/funnel/launch_gate.dart';
 import 'package:spamfiltering_emailclient/ui/premium/upsell_sheet.dart';
 import 'package:spamfiltering_emailclient/ui/settings/settings_view.dart';
 import 'package:spamfiltering_emailclient/ui/shell/nav_shell.dart';
@@ -161,19 +161,19 @@ void main() {
     });
   });
   testWidgets('onboarding mobile', (t) async {
-    await shot(t, 'onboarding_mobile', OnboardingView(onComplete: () {}), size: const Size(390, 844), dpr: 2);
+    await shot(t, 'onboarding_mobile', Builder(builder: (ctx) => AppLaunchGate.buildOnboarding(ctx, () {})), size: const Size(390, 844), dpr: 2);
   });
   testWidgets('onboarding desktop', (t) async {
-    await shot(t, 'onboarding_desktop', OnboardingView(onComplete: () {}));
+    await shot(t, 'onboarding_desktop', Builder(builder: (ctx) => AppLaunchGate.buildOnboarding(ctx, () {})));
   });
   testWidgets('onboarding desktop p2', (t) async {
-    await shot(t, 'onboarding_desktop_p2', OnboardingView(onComplete: () {}), act: (t) async {
-      await t.tap(find.text('Continue'));
+    await shot(t, 'onboarding_desktop_p2', Builder(builder: (ctx) => AppLaunchGate.buildOnboarding(ctx, () {})), act: (t) async {
+      await t.tap(find.text('Next'));
       await t.pump(const Duration(milliseconds: 600));
     });
   });
   testWidgets('onboarding mobile p3 dark', (t) async {
-    await shot(t, 'onboarding_mobile_p3_dark', OnboardingView(onComplete: () {}), size: const Size(390, 844), dpr: 2, mode: ThemeMode.dark, act: (t) async {
+    await shot(t, 'onboarding_mobile_p3_dark', Builder(builder: (ctx) => AppLaunchGate.buildOnboarding(ctx, () {})), size: const Size(390, 844), dpr: 2, mode: ThemeMode.dark, act: (t) async {
       for (var i = 0; i < 2; i++) {
         await t.fling(find.byType(PageView), const Offset(-500, 0), 2000);
         await t.pump(const Duration(milliseconds: 1500));
