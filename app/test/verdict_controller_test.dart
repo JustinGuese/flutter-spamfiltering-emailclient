@@ -1,3 +1,4 @@
+// ignore: depend_on_referenced_packages
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spam_core/spam_core.dart';
@@ -193,6 +194,30 @@ void main() {
 
       async.elapse(const Duration(seconds: 15));
       expect(unsubService.calls, isEmpty);
+    });
+  });
+
+  test('5. Spam-clicking several messages in a row unsubscribes from each, not just the last', () {
+    fakeAsync((async) {
+      db.db.execute("INSERT INTO messages (id, account_id, folder_id, uid, subject, sender, sender_domain, recipient_addrs, date, snippet, classification_label) VALUES ('m2', 'a', 'f', 2, 'Other', 's@y.com', 'y.com', '', '2026-11-02T10:00:00', '', 'inbox')");
+      db.db.execute("INSERT INTO bodies (message_id, text_body, remote_images_blocked) VALUES ('m2', 'other body', 1)");
+      final unsubService = _FakeUnsubscribeService();
+      final controller = VerdictController(
+        db: db,
+        tokenStore: TokenStoreDrift(db),
+        reportClient: _FakeReports(),
+        unsubscribeService: unsubService,
+      );
+
+      controller.applyVerdict(messageId: 'm', newLabel: Label.spam);
+      async.flushMicrotasks();
+      controller.applyVerdict(messageId: 'm2', newLabel: Label.spam);
+      async.flushMicrotasks();
+      expect(controller.hasPendingUnsubscribe('m'), isTrue);
+      expect(controller.hasPendingUnsubscribe('m2'), isTrue);
+
+      async.elapse(const Duration(seconds: 11));
+      expect(unsubService.calls.map((c) => c.messageId).toSet(), {'m', 'm2'});
     });
   });
 }

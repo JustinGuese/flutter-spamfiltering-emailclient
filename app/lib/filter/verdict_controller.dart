@@ -49,8 +49,9 @@ class VerdictController {
   UndoRecord? _activeUndo;
   DateTime? _lastUploadTime;
   Timer? _debounceTimer;
-  Timer? _pendingUnsubscribeTimer;
-  String? _pendingUnsubscribeMessageId;
+  /// One pending auto-unsubscribe per message, so spam-clicking several
+  /// messages in a row does not drop all but the last.
+  final Map<String, Timer> _pendingUnsubscribes = {};
   bool _isExecutingUndo = false;
 
   VerdictController({
@@ -67,8 +68,9 @@ class VerdictController {
   });
 
   UndoRecord? get activeUndo => _activeUndo;
-  Timer? get pendingUnsubscribeTimer => _pendingUnsubscribeTimer;
-  String? get pendingUnsubscribeMessageId => _pendingUnsubscribeMessageId;
+  Timer? get pendingUnsubscribeTimer => _pendingUnsubscribes.values.lastOrNull;
+  String? get pendingUnsubscribeMessageId => _pendingUnsubscribes.keys.lastOrNull;
+  bool hasPendingUnsubscribe(String messageId) => _pendingUnsubscribes.containsKey(messageId);
 
   Future<int> applyVerdict({
     required String messageId,
@@ -149,37 +151,25 @@ class VerdictController {
   }
 
   void _handleUnsubscribeScheduling(String messageId, Label newLabel, {required bool isUndo}) {
-    // Any non-spam verdict cancels pending unsubscribe
-    if (newLabel != Label.spam) {
-      _cancelPendingUnsubscribe();
-      return;
-    }
+    // Any non-spam verdict, and spam applied as the undo of a ham verdict,
+    // cancels this message's pending unsubscribe and never schedules one.
+    _cancelPendingUnsubscribe(messageId);
+    if (newLabel != Label.spam || isUndo) return;
 
-    // Applying spam as the undo of a ham verdict does NOT schedule auto-unsubscribe.
-    if (isUndo) {
-      _cancelPendingUnsubscribe();
-      return;
-    }
-
-    // Spam click schedules unsubscribe after 10 seconds.
-    _cancelPendingUnsubscribe();
-    if (unsubscribeService != null) {
-      _pendingUnsubscribeMessageId = messageId;
-      _pendingUnsubscribeTimer = Timer(const Duration(seconds: 10), () {
-        unsubscribeService?.unsubscribeForMessage(
-          messageId,
-          trigger: UnsubscribeTrigger.verdict,
-        );
-        _pendingUnsubscribeTimer = null;
-        _pendingUnsubscribeMessageId = null;
+    // Spam click schedules unsubscribe after 10 seconds (past the 8 s undo window).
+    final service = unsubscribeService;
+    if (service == null) return;
+    _pendingUnsubscribes[messageId] = Timer(const Duration(seconds: 10), () {
+      _pendingUnsubscribes.remove(messageId);
+      service.unsubscribeForMessage(messageId, trigger: UnsubscribeTrigger.verdict).catchError((Object e, StackTrace st) {
+        logError('auto unsubscribe $messageId', e, st);
+        return const UnsubscribeOutcome(UnsubscribeStatus.failed);
       });
-    }
+    });
   }
 
-  void _cancelPendingUnsubscribe() {
-    _pendingUnsubscribeTimer?.cancel();
-    _pendingUnsubscribeTimer = null;
-    _pendingUnsubscribeMessageId = null;
+  void _cancelPendingUnsubscribe(String messageId) {
+    _pendingUnsubscribes.remove(messageId)?.cancel();
   }
 
   void _handleCommunityReporting(Normalized normalized, Label prev, Label next) {
@@ -289,9 +279,9 @@ class VerdictController {
   }
 
   void undo() {
-    _cancelPendingUnsubscribe();
     final record = _activeUndo;
     if (record == null) return;
+    _cancelPendingUnsubscribe(record.messageId);
     record.timer.cancel();
     _activeUndo = null;
     _isExecutingUndo = true;

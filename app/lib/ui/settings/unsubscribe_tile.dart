@@ -56,7 +56,7 @@ class UnsubscribeTile extends ConsumerWidget {
           ),
         ),
         value: enabled,
-        activeColor: palette.brand.base,
+        activeThumbColor: palette.brand.base,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         onChanged: (val) {
           ref.read(autoUnsubscribeProvider.notifier).toggle(val);
