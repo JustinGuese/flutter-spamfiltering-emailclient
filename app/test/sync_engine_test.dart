@@ -2,10 +2,14 @@ import 'dart:async';
 import 'dart:io';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:spamfiltering_emailclient/db/database.dart';
+import 'package:spamfiltering_emailclient/filter/filter_service.dart';
+import 'package:spamfiltering_emailclient/filter/token_store_drift.dart';
 import 'package:spamfiltering_emailclient/mail/account_repository.dart';
 import 'package:spamfiltering_emailclient/mail/imap_service.dart';
 import 'package:spamfiltering_emailclient/mail/mail_auth.dart';
 import 'package:spamfiltering_emailclient/mail/sync_engine.dart';
+import 'package:spamfiltering_emailclient/notifications/notify_types.dart';
+import 'package:spam_core/spam_core.dart' as sc;
 import 'package:enough_mail/enough_mail.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -70,10 +74,12 @@ class _FakeImap extends ImapService {
     return inbox;
   }
 
+  List<MimeMessage> newerMessages = const [];
+
   @override
   Future<List<MimeMessage>> fetchNewerThan(int lastUid) async {
     newerThan = lastUid;
-    return const [];
+    return newerMessages;
   }
 
   String? current;
@@ -95,6 +101,28 @@ class _FakeImap extends ImapService {
 
   @override
   Future<void> disconnect() async => disconnected = true;
+}
+
+class _FakeFilterService extends FilterService {
+  final sc.Verdict Function(String messageId, sc.Message msg)? onClassify;
+
+  _FakeFilterService(AppDatabase db, {this.onClassify})
+      : super(
+          db: db,
+          tokenStore: TokenStoreDrift(db),
+        );
+
+  @override
+  Future<sc.Verdict> classifyMessage({
+    required String messageId,
+    required sc.Message message,
+    bool isCommunityMatch = false,
+  }) async {
+    if (onClassify != null) {
+      return onClassify!(messageId, message);
+    }
+    return const sc.Verdict(label: sc.Label.inbox, spamScore: 0.1);
+  }
 }
 
 void main() {
@@ -298,6 +326,108 @@ void main() {
       final failed = await failing.searchRemote('x');
       expect((failed.imported, failed.failed), (0, 1));
       expect(failed.error, contains('No saved password'), reason: 'the reason reaches the UI');
+    });
+  });
+
+  group('onNewMail notifications', () {
+    test('onNewMail fires only for new unread classified-inbox mail, not on initial fetch, not twice', () async {
+      final initialMsgs = [_msg(9001, 1), _msg(9002, 2)];
+      final imap = _FakeImap(initialMsgs);
+      final filterService = _FakeFilterService(db);
+
+      final newMailBatches = <List<NewMail>>[];
+      final engine = SyncEngine(
+        db: db,
+        accountRepo: repo,
+        imap: imap,
+        filterService: filterService,
+        onNewMail: (batch) => newMailBatches.add(batch),
+      );
+
+      // 1. Initial fetch: 2 unread messages in inbox. Must NOT fire onNewMail!
+      await engine.syncAccount('a1');
+      expect(newMailBatches, isEmpty, reason: 'Initial fetch must not fire notifications');
+
+      // 2. Second sync: same messages, no new messages.
+      await engine.syncAccount('a1');
+      expect(newMailBatches, isEmpty, reason: 'No new mail fetched');
+
+      // 3. New fetch with:
+      // - 9003: unread, inbox verdict (spamScore 0.1) -> should notify
+      // - 9004: read (isSeen: true), inbox verdict -> should NOT notify
+      // - 9005: unread, spam verdict (spamScore 0.95) -> should NOT notify
+      // - 9006: unread, newsletter verdict -> should NOT notify
+      // - 9007: unread, unsure-junk (spamScore 0.7) -> should NOT notify
+      final msgSeen = _msg(9004, 4)..flags = [r'\Seen'];
+      imap.newerMessages = [
+        _msg(9003, 3),
+        msgSeen,
+        _msg(9005, 5),
+        _msg(9006, 6),
+        _msg(9007, 7),
+      ];
+
+      final classifyingFilter = _FakeFilterService(db, onClassify: (msgId, msg) {
+        if (msgId.endsWith('_9003')) {
+          return const sc.Verdict(label: sc.Label.inbox, spamScore: 0.1);
+        } else if (msgId.endsWith('_9004')) {
+          return const sc.Verdict(label: sc.Label.inbox, spamScore: 0.1);
+        } else if (msgId.endsWith('_9005')) {
+          return const sc.Verdict(label: sc.Label.spam, spamScore: 0.95);
+        } else if (msgId.endsWith('_9006')) {
+          return const sc.Verdict(label: sc.Label.newsletter, spamScore: 0.2);
+        } else if (msgId.endsWith('_9007')) {
+          return const sc.Verdict(label: sc.Label.spam, spamScore: 0.7);
+        }
+        return const sc.Verdict(label: sc.Label.inbox, spamScore: 0.1);
+      });
+
+      final engineWithClassifier = SyncEngine(
+        db: db,
+        accountRepo: repo,
+        imap: imap,
+        filterService: classifyingFilter,
+        onNewMail: (batch) => newMailBatches.add(batch),
+      );
+
+      await engineWithClassifier.syncAccount('a1');
+
+      expect(newMailBatches.length, 1);
+      final batch = newMailBatches.first;
+      expect(batch.length, 1, reason: 'Only 9003 meets all criteria');
+      expect(batch.first.messageId, 'a1_INBOX_9003');
+      expect(batch.first.accountId, 'a1');
+      expect(batch.first.sender, 'sender9003@example.com');
+      expect(batch.first.subject, 'Mail 9003');
+
+      // 4. Third sync: ensure it doesn't fire twice for the same mail
+      newMailBatches.clear();
+      imap.newerMessages = [];
+      await engineWithClassifier.syncAccount('a1');
+      expect(newMailBatches, isEmpty, reason: 'Must not fire twice');
+    });
+
+    test('non-inbox folders (Sent, etc.) never notify', () async {
+      final imap = _FakeImap([_msg(1001, 1)])
+        ..folders = const [
+          ImapFolderInfo(name: 'Sent Mail', serverPath: '[Gmail]/Sent Mail', specialUse: 'sent'),
+        ];
+      final newMailBatches = <List<NewMail>>[];
+      final engine = SyncEngine(
+        db: db,
+        accountRepo: repo,
+        imap: imap,
+        onNewMail: (batch) => newMailBatches.add(batch),
+      );
+
+      // Initial sync
+      await engine.syncAccount('a1');
+      expect(newMailBatches, isEmpty);
+
+      // New sent mail
+      imap.newerMessages = [_msg(1002, 2)];
+      await engine.syncAccount('a1');
+      expect(newMailBatches, isEmpty, reason: 'Sent folder must never notify');
     });
   });
 }

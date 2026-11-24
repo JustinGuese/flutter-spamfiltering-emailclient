@@ -6,6 +6,8 @@ import '../db/database.dart';
 import '../search/search_query.dart';
 import '../filter/filter_service.dart';
 import '../filter/imap_flags.dart';
+import '../notifications/notify_types.dart';
+import '../notifications/new_mail_notifier.dart';
 import 'account_repository.dart';
 import '../app/log.dart';
 import 'attachments.dart';
@@ -33,6 +35,7 @@ class SyncEngine {
   final ImapService imap;
   final FilterService? filterService;
   final void Function()? onChanged;
+  final void Function(List<NewMail>)? onNewMail;
   final AttachmentCache attachmentCache;
 
   SyncEngine({
@@ -41,6 +44,7 @@ class SyncEngine {
     ImapService? imap,
     this.filterService,
     this.onChanged,
+    this.onNewMail,
     AttachmentCache? attachmentCache,
   })  : imap = imap ?? ImapService(),
         attachmentCache = attachmentCache ?? AttachmentCache();
@@ -107,9 +111,17 @@ class SyncEngine {
         onChanged?.call();
 
         final isSent = folder.specialUse == 'sent';
-        if (folder.specialUse == 'inbox' || folder.specialUse == null || isSent) {
+        final isInbox = folder.specialUse == 'inbox';
+        if (isInbox || folder.specialUse == null || isSent) {
           try {
-            await _syncFolderMessages(account.id, folderId, folder.serverPath, junkFolder, classify: !isSent);
+            await _syncFolderMessages(
+              account.id,
+              folderId,
+              folder.serverPath,
+              junkFolder,
+              classify: !isSent,
+              isInbox: isInbox,
+            );
           } catch (e, st) {
             // One unreadable folder must not abort the inbox or the rest.
             logError('sync folder ${folder.serverPath}', e, st);
@@ -165,6 +177,7 @@ class SyncEngine {
     // False for Sent: your own outgoing mail is never scored, never moved to
     // Junk and never trains the filter.
     bool classify = true,
+    bool isInbox = false,
   }) async {
     await imap.selectMailbox(serverPath);
     final row = db.db.select(
@@ -180,6 +193,8 @@ class SyncEngine {
     // Newest first, so the top of the list fills in before older mail.
     final messages = [...fetched]..sort((a, b) => (b.uid ?? 0).compareTo(a.uid ?? 0));
     var processed = 0;
+    final newlyNotifiable = <NewMail>[];
+
     for (final msg in messages) {
       final uid = msg.uid ?? 0;
       if (uid == 0) continue;
@@ -189,6 +204,9 @@ class SyncEngine {
       final sender = stored.sender;
       final snippet = stored.text;
       final rawHtml = stored.rawHtml;
+
+      var finalLabel = 'inbox';
+      var finalSpamScore = 0.0;
 
       if (classify && filterService != null) {
         final headersMap = <String, List<String>>{};
@@ -213,8 +231,11 @@ class SyncEngine {
           messageId: msgId,
           message: spamMsg,
         );
+        finalLabel = verdict.label.name;
+        finalSpamScore = verdict.spamScore;
 
         if (verdict.spamScore >= 0.9) {
+          finalLabel = sc.Label.spam.name;
           if (junkFolder != null) {
             try {
               await ImapFlagsManager.markSpam(imap, uid);
@@ -234,13 +255,34 @@ class SyncEngine {
             );
           }
         } else if (verdict.spamScore >= 0.6) {
+          finalLabel = sc.Label.spam.name;
           db.db.execute(
             'UPDATE messages SET classification_label = ? WHERE id = ?',
             [sc.Label.spam.name, msgId],
           );
         }
       }
+
+      if (isInbox &&
+          lastUid > 0 &&
+          !msg.isSeen &&
+          (finalLabel == 'inbox' || finalLabel == 'ham') &&
+          finalSpamScore < 0.6) {
+        newlyNotifiable.add(
+          NewMail(
+            messageId: msgId,
+            accountId: accountId,
+            sender: sender,
+            subject: subject,
+            receivedAt: stored.date,
+          ),
+        );
+      }
+
       if (++processed % 10 == 0) onChanged?.call();
+    }
+    if (newlyNotifiable.isNotEmpty) {
+      onNewMail?.call(newlyNotifiable);
     }
     onChanged?.call();
     logInfo('sync', '$serverPath: stored ${messages.length} messages');
@@ -249,7 +291,7 @@ class SyncEngine {
   /// Writes one fetched message (and its body) to SQLite, replacing any copy.
   /// Shared by sync and remote search so a message is stored the same way
   /// whichever found it.
-  ({String id, String subject, String sender, String text, String? rawHtml}) _storeMessage(
+  ({String id, String subject, String sender, DateTime date, String text, String? rawHtml}) _storeMessage(
     String accountId,
     String folderId,
     MimeMessage msg,
@@ -304,7 +346,7 @@ class SyncEngine {
       sanitized?.hasRemoteImages == true ? 1 : 0,
     ]);
     _storeAttachmentRows(msgId, files);
-    return (id: msgId, subject: subject, sender: sender, text: snippet, rawHtml: rawHtml);
+    return (id: msgId, subject: subject, sender: sender, date: date, text: snippet, rawHtml: rawHtml);
   }
 
   /// Records which files a message carries (names and part numbers only; the
@@ -590,11 +632,13 @@ final syncEngineProvider = Provider<SyncEngine>((ref) {
   final db = ref.watch(databaseProvider);
   final repo = ref.watch(accountRepositoryProvider);
   final filterService = ref.watch(filterServiceProvider);
+  final mailNotifier = ref.watch(newMailNotifierProvider);
   return SyncEngine(
     db: db,
     accountRepo: repo,
     filterService: filterService,
     onChanged: () => ref.read(mailRevisionProvider.notifier).bump(),
+    onNewMail: (batch) => mailNotifier.add(batch),
     attachmentCache: ref.watch(attachmentCacheProvider),
   );
 });

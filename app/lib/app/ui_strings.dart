@@ -92,23 +92,37 @@ abstract final class UiStrings {
   static const setupConnecting = 'Connecting…';
   static const setupStoreFailed =
       'Could not save the password to the system keychain, so the account was not added. Make sure a keychain (e.g. gnome-keyring) is running and unlocked.';
-
-  static const artSubject = 'CONGRATULATIONS!!! You have been selected';
-  static const artSender = 'Prize Desk';
-  static const artVerdictInbox = 'Inbox';
-  static const artVerdictNewsletter = 'Newsletter';
-  static const artVerdictSpam = 'Spam';
-  static const artStamp = 'SPAM';
-  static const artLearned = 'Learned · similar mail moves too';
-  static const artHashCaption = 'No names. No addresses. Just fingerprints.';
-  static const artKindBody = 'body';
-  static const artKindUrl = 'link';
-  static const artKindDomain = 'sender';
+  static const setupContinueGoogle = 'Continue with Google';
+  static const setupContinueMicrosoft = 'Continue with Microsoft';
+  static const setupOrDivider = 'or configure with password';
+  static const setupGoogleNotConfigured =
+      'Google sign-in is not configured in this build';
+  static const setupMicrosoftNotConfigured =
+      'Microsoft sign-in is not configured in this build';
+  static const accountReconnect = 'Reconnect';
+  static const accountReconnecting = 'Reconnecting…';
+  static const accountReconnectSuccess = 'Account reconnected successfully';
+  static const accountNeedsReauth = 'Needs re-authentication';
 
   static const settingsAccounts = 'Accounts';
+  static const settingsNotifications = 'Notifications';
   static const settingsPrivacy = 'Privacy';
   static const settingsPro = 'Pro';
   static const settingsAppearance = 'Appearance';
+  static const settingsLegal = 'Legal';
+
+  // Notifications
+  static const notifyModeTitle = 'New mail notifications';
+  static const notifyModeOff = 'Off';
+  static const notifyModeInstant = 'On every new message';
+  static const notifyModeEvery5min = 'Bundled every 5 minutes';
+  static const notifyModeHourly = 'Hourly summary';
+  static const notifyBlockedSubtitle =
+      'Notifications are blocked in system settings';
+  static const notifySendTest = 'Send test notification';
+  static const notifyTestTitle = 'Test notification';
+  static const notifyTestBody =
+      'This is a test notification from DataFortress Mail.';
 
   static const upsellEyebrow = 'Pro';
   static const upsellHeadline = 'Your filter, on every device.';
@@ -210,4 +224,10 @@ abstract final class UiStrings {
         'ai' => signalAi,
         _ => id,
       };
+
+  // Notifications
+  static String notifySummaryTitle(int count) =>
+      '$count new messages';
+  static String notifyBundledBody(List<String> senders) =>
+      senders.join(', ');
 }

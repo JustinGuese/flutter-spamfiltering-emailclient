@@ -67,6 +67,25 @@ class MailAutodiscover {
     ),
   };
 
+  /// Known OAuth host configurations for Gmail and Microsoft.
+  static const DiscoveredConfig gmailOAuth = DiscoveredConfig(
+    imapHost: 'imap.gmail.com',
+    imapPort: 993,
+    imapTls: true,
+    smtpHost: 'smtp.gmail.com',
+    smtpPort: 587,
+    smtpTls: true,
+  );
+
+  static const DiscoveredConfig microsoftOAuth = DiscoveredConfig(
+    imapHost: 'outlook.office365.com',
+    imapPort: 993,
+    imapTls: true,
+    smtpHost: 'smtp-mail.outlook.com',
+    smtpPort: 587,
+    smtpTls: true,
+  );
+
   static DiscoveredConfig? resolveKnown(String email) {
     final parts = email.split('@');
     if (parts.length != 2) return null;

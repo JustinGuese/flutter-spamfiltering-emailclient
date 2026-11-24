@@ -11,6 +11,8 @@ import '../../mail/account_repository.dart';
 import '../../mail/autodiscover.dart';
 import '../../mail/imap_service.dart';
 import '../../mail/mail_auth.dart';
+import '../../mail/oauth/oauth_config.dart';
+import '../../mail/oauth/oauth_flow.dart';
 import '../../mail/sync_engine.dart';
 
 class AccountSetupView extends ConsumerStatefulWidget {
@@ -89,6 +91,60 @@ class _AccountSetupViewState extends ConsumerState<AccountSetupView> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
+          OutlinedButton(
+            onPressed: _isLoading ? null : () => _connectOAuth(OAuthProvider.google),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              side: BorderSide(color: c.hairline),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(context.df.shape.md)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.g_mobiledata_rounded, size: 22),
+                const SizedBox(width: 8),
+                Text(
+                  UiStrings.setupContinueGoogle,
+                  style: AppType.ui(c.textPrimary, size: 14.5, weight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton(
+            onPressed: _isLoading ? null : () => _connectOAuth(OAuthProvider.microsoft),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              side: BorderSide(color: c.hairline),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(context.df.shape.md)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.window_rounded, size: 18),
+                const SizedBox(width: 10),
+                Text(
+                  UiStrings.setupContinueMicrosoft,
+                  style: AppType.ui(c.textPrimary, size: 14.5, weight: FontWeight.w600),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(child: Divider(color: c.hairline, thickness: 1)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  UiStrings.setupOrDivider,
+                  style: AppType.ui(c.textTertiary, size: 12),
+                ),
+              ),
+              Expanded(child: Divider(color: c.hairline, thickness: 1)),
+            ],
+          ),
+          const SizedBox(height: 18),
           TextField(controller: _nameCtrl, decoration: const InputDecoration(labelText: AppStrings.setupDisplayName)),
           const SizedBox(height: 14),
           TextField(
@@ -295,6 +351,140 @@ class _AccountSetupViewState extends ConsumerState<AccountSetupView> {
       );
       widget.onSetupSuccess?.call();
       Navigator.of(context).pop();
+    }
+  }
+
+  Future<void> _connectOAuth(OAuthProvider provider) async {
+    if (!OAuthConfig.isConfigured(provider)) {
+      final msg = provider == OAuthProvider.google
+          ? UiStrings.setupGoogleNotConfigured
+          : UiStrings.setupMicrosoftNotConfigured;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(msg)),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    final flow = ref.read(oauthFlowProvider);
+    final oauthService = ref.read(oauthServiceProvider);
+
+    try {
+      final tokens = await flow.authorize(provider);
+
+      // Identity extraction from idToken, with fallback to email controller if needed
+      String email = '';
+      String? displayName;
+      if (tokens.idToken != null && tokens.idToken!.isNotEmpty) {
+        try {
+          final identity = oauthService.identityFrom(tokens.idToken!);
+          email = identity.email;
+          displayName = identity.displayName;
+        } catch (e, st) {
+          logError('extract identity from ID token', e, st);
+        }
+      }
+      if (email.isEmpty) {
+        email = _emailCtrl.text.trim();
+      }
+      final resolvedName = _nameCtrl.text.trim().isNotEmpty
+          ? _nameCtrl.text.trim()
+          : (displayName != null && displayName.isNotEmpty ? displayName : email);
+
+      final config = provider == OAuthProvider.google
+          ? MailAutodiscover.gmailOAuth
+          : MailAutodiscover.microsoftOAuth;
+      final authType = provider == OAuthProvider.google ? 'oauth_google' : 'oauth_microsoft';
+
+      final account = AccountRecord(
+        id: 'acc_${DateTime.now().millisecondsSinceEpoch}',
+        email: email,
+        displayName: resolvedName,
+        imapHost: config.imapHost,
+        imapPort: config.imapPort,
+        smtpHost: config.smtpHost,
+        smtpPort: config.smtpPort,
+        authType: authType,
+        createdAt: DateTime.now(),
+      );
+
+      final mailAuth = OAuth2MailAuth(
+        tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        expiresAt: tokens.expiresAt,
+        provider: provider,
+      );
+
+      // Probe connectAndAuthenticate before persisting
+      final probe = ImapService();
+      try {
+        await probe.connectAndAuthenticate(account, mailAuth);
+      } catch (e, st) {
+        logError('OAuth connection test ${account.imapHost}:${account.imapPort}', e, st);
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${AppStrings.setupFailed} ($e)'),
+            duration: const Duration(seconds: 12),
+            showCloseIcon: true,
+          ),
+        );
+        return;
+      } finally {
+        try {
+          await probe.disconnect();
+        } catch (_) {}
+      }
+
+      final repo = ref.read(accountRepositoryProvider);
+      try {
+        await repo
+            .saveAccount(account, mailAuth)
+            .timeout(const Duration(seconds: 15));
+      } catch (e, st) {
+        logError('save OAuth credentials', e, st);
+        repo.deleteAccount(account.id).timeout(const Duration(seconds: 3)).catchError((Object _) {});
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${UiStrings.setupStoreFailed} ($e)')),
+        );
+        return;
+      }
+
+      ref.read(mailRevisionProvider.notifier).bump();
+      final syncEngine = ref.read(syncEngineProvider);
+      final errors = ref.read(syncErrorProvider.notifier);
+      syncEngine.syncAccount(account.id).catchError((Object e, StackTrace st) {
+        logError('sync $email', e, st);
+        errors.set('Sync failed for $email: $e');
+      });
+
+      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(AppStrings.setupSuccess)),
+        );
+        widget.onSetupSuccess?.call();
+        Navigator.of(context).pop();
+      }
+    } on OAuthCancelledException {
+      // User cancelled sign-in -> leaves no half-saved account, no error snackbar
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    } catch (e, st) {
+      logError('OAuth sign-in failed', e, st);
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${AppStrings.setupFailed} ($e)'),
+          duration: const Duration(seconds: 12),
+          showCloseIcon: true,
+        ),
+      );
     }
   }
 }

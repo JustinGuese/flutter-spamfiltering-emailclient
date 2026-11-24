@@ -1,11 +1,12 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:df_funnel/df_funnel.dart';
+import 'package:df_onboarding/df_onboarding.dart';
 import 'package:df_theme/df_theme.dart';
 import 'funnel_config.dart';
+import '../app/strings.dart';
 import '../mail/account_repository.dart';
 import '../ui/account_setup/account_setup_view.dart';
-import '../ui/onboarding/onboarding_view.dart';
 import '../ui/premium/upsell_sheet.dart';
 
 /// Funnel entry gate wrapping the main application with skippable onboarding
@@ -16,14 +17,74 @@ class AppLaunchGate extends StatelessWidget {
 
   const AppLaunchGate({super.key, required this.child});
 
+  static Widget buildOnboarding(BuildContext context, VoidCallback onComplete) {
+    final c = context.df.colors;
+    return ProviderScope(
+      overrides: [
+        onboardingConfigProvider.overrideWithValue(
+          OnboardingConfig(
+            showSkipButton: true,
+            preferencesKey: AppFunnelConfig.config.onboardingCompletedKey,
+            pages: [
+              OnboardingPageModel(
+                icon: Icons.lock_outline_rounded,
+                emoji: '🔒',
+                title: AppStrings.onbPage1Title,
+                subtitle: AppStrings.onbPage1Body,
+                features: const [
+                  'Private by design',
+                  'Absolute local privacy',
+                  'Zero tracking or ad networks',
+                ],
+                gradient: [c.brand.deep, c.brand.base],
+              ),
+              OnboardingPageModel(
+                icon: Icons.psychology_outlined,
+                emoji: '⚡',
+                title: AppStrings.onbPage2Title,
+                subtitle: AppStrings.onbPage2Body,
+                features: const [
+                  'Learns on-device',
+                  'Bayesian token classification',
+                  'Data never leaves your disk',
+                ],
+                gradient: [c.brand.base, c.accent.deep],
+              ),
+              OnboardingPageModel(
+                icon: Icons.shield_outlined,
+                emoji: '🛡️',
+                title: AppStrings.onbPage3Title,
+                subtitle: AppStrings.onbPage3Body,
+                features: const [
+                  'Community protection',
+                  'Zero-ID anonymous hashes',
+                  'Block emerging spam campaigns',
+                ],
+                gradient: [c.accent.deep, c.brand.deep],
+              ),
+            ],
+          ),
+        ),
+      ],
+      child: OnboardingScreen(
+        onNavigateAfterComplete: onComplete,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return DfLaunchGate(
       config: AppFunnelConfig.config,
-      onboardingBuilder: (ctx, onComplete) => OnboardingView(onComplete: onComplete),
+      onboardingBuilder: (ctx, onComplete) => buildOnboarding(ctx, onComplete),
       // The funnel mounts the paywall as a full page, not inside a bottom
       // sheet, so it needs its own Material surface (otherwise: black canvas
       // and yellow-underlined text).
+      //
+      // Invariant note: Shared [DfUpsellSheet] from `df_funnel` cannot express
+      // visible price + renewal terms or an equally prominent close button.
+      // Per PLAN-oauth-notify, [AppUpsellSheet] is retained here to uphold
+      // the honesty rules.
       paywallBuilder: (ctx, onComplete) => Scaffold(
         backgroundColor: ctx.df.colors.canvas,
         body: AppUpsellSheet(
