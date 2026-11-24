@@ -1,3 +1,5 @@
+import 'package:df_onboarding/df_onboarding.dart';
+import 'package:spamfiltering_emailclient/app/strings.dart';
 import 'package:spamfiltering_emailclient/app/ui_strings.dart';
 import 'package:spamfiltering_emailclient/db/database.dart';
 import 'package:spamfiltering_emailclient/funnel/launch_gate.dart';
@@ -52,6 +54,68 @@ void main() {
   }
 
   const done = {'flutter.df_funnel_onboarding_completed': true};
+
+  testWidgets('fresh install goes onboarding (Skip) -> paywall ("Maybe later") -> Add Account', (tester) async {
+    await pumpGate(tester, {});
+
+    // Onboarding step from df_onboarding
+    expect(find.byType(OnboardingScreen), findsOneWidget);
+    expect(find.text(AppStrings.onbPage1Title), findsOneWidget);
+    expect(find.text('Skip'), findsOneWidget);
+
+    // Skip onboarding
+    await tester.tap(find.text('Skip'));
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 600));
+    }
+
+    // Advances to paywall step
+    expect(find.byType(OnboardingScreen), findsNothing);
+    expect(find.text('Maybe later'), findsOneWidget);
+    expect(find.text(UiStrings.upsellPoint1), findsOneWidget);
+
+    // Skip paywall
+    await tester.tap(find.text('Maybe later'));
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 600));
+    }
+
+    // Opens Add Account
+    expect(find.byType(AccountSetupView), findsOneWidget);
+    expect(find.byType(AppNavShell, skipOffstage: false), findsOneWidget);
+  });
+
+  testWidgets('fresh install completes onboarding via carousel -> paywall', (tester) async {
+    await pumpGate(tester, {});
+
+    expect(find.byType(OnboardingScreen), findsOneWidget);
+    expect(find.text(AppStrings.onbPage1Title), findsOneWidget);
+
+    // Next to page 2
+    await tester.tap(find.text('Next'));
+    for (var i = 0; i < 2; i++) {
+      await tester.pump(const Duration(milliseconds: 600));
+    }
+    expect(find.text(AppStrings.onbPage2Title), findsOneWidget);
+
+    // Next to page 3
+    await tester.tap(find.text('Next'));
+    for (var i = 0; i < 2; i++) {
+      await tester.pump(const Duration(milliseconds: 600));
+    }
+    expect(find.text(AppStrings.onbPage3Title), findsOneWidget);
+
+    // Get Started on last page completes onboarding
+    expect(find.text('Get Started'), findsOneWidget);
+    await tester.tap(find.text('Get Started'));
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 600));
+    }
+
+    // Advances to paywall step
+    expect(find.byType(OnboardingScreen), findsNothing);
+    expect(find.text('Maybe later'), findsOneWidget);
+  });
 
   testWidgets('paywall "Maybe later" opens Add Account when no account exists', (tester) async {
     await pumpGate(tester, done);

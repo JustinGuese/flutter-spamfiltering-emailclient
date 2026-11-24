@@ -7,7 +7,16 @@
 **An email client whose spam filter you can read, train and audit.**
 
 <p align="center">
+  <a href="https://github.com/JustinGuese/flutter-spamfiltering-emailclient/actions/workflows/build.yaml"><img src="https://github.com/JustinGuese/flutter-spamfiltering-emailclient/actions/workflows/build.yaml/badge.svg" alt="Build & Release"></a>
+  <a href="https://github.com/JustinGuese/flutter-spamfiltering-emailclient/releases/latest"><img src="https://img.shields.io/github/v/release/JustinGuese/flutter-spamfiltering-emailclient?label=release" alt="Latest release"></a>
+  <a href="https://github.com/JustinGuese/flutter-spamfiltering-emailclient/releases"><img src="https://img.shields.io/github/downloads/JustinGuese/flutter-spamfiltering-emailclient/total?label=downloads" alt="Downloads"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/JustinGuese/flutter-spamfiltering-emailclient" alt="License: Apache 2.0"></a>
+  <a href="https://justinguese.github.io/flutter-spamfiltering-emailclient/"><img src="https://img.shields.io/badge/docs-online-blue" alt="Documentation"></a>
+</p>
+
+<p align="center">
   <a href="https://justinguese.github.io/flutter-spamfiltering-emailclient/"><b>Documentation</b></a> ·
+  <a href="#download">Download</a> ·
   <a href="https://justinguese.github.io/flutter-spamfiltering-emailclient/getting-started/install/">Get started</a> ·
   <a href="https://justinguese.github.io/flutter-spamfiltering-emailclient/concepts/privacy-model/">Privacy model</a>
 </p>
@@ -35,7 +44,7 @@ Collective defense works without identifying anyone. Clients share MinHash finge
     <img src="screenshots/spamexmaple.png" alt="Evidence Sheet and Spam Verdict Breakdown" width="750">
   </p>
 
-- **Everyday Mail Client**: Multi-account IMAP/SMTP, Sent folder, Reply / Reply All / Forward with proper threading headers, attachments in both directions (attach files up to 18 MB; received files download from your mail server when you open them; forwards keep the original's files), and a full-screen reading view.
+- **Everyday Mail Client**: Multi-account IMAP/SMTP (password, or Google and Microsoft sign-in via OAuth2), local new-mail notifications (every message, bundled every 5 minutes, or hourly), Sent folder, Reply / Reply All / Forward with proper threading headers, attachments in both directions (attach files up to 18 MB; received files download from your mail server when you open them; forwards keep the original's files), and a full-screen reading view.
 
   <p align="center">
     <img src="screenshots/connect_account.png" alt="Connecting an Account via IMAP/SMTP" width="750">
@@ -58,7 +67,25 @@ Collective defense works without identifying anyone. Clients share MinHash finge
 
 ---
 
-## Quickstart
+## Download
+
+Every link below points at the **newest release**, so it never goes stale. Builds are produced by the [Build & Release workflow](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/actions/workflows/build.yaml); browse older versions on the [releases page](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/releases).
+
+| Platform | Download | Format | Notes |
+|---|---|---|---|
+| 🐧 Linux (x64) | [DataFortress-Mail-linux-x64.tar.gz](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/releases/latest/download/DataFortress-Mail-linux-x64.tar.gz) | `.tar.gz` | Extract and run the bundled binary. Needs `gnome-keyring` / `libsecret` for credential storage. |
+| 🪟 Windows (x64) | [DataFortress-Mail-windows-x64.zip](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/releases/latest/download/DataFortress-Mail-windows-x64.zip) | `.zip` | Extract and run the `.exe`. |
+| 🍎 macOS | [DataFortress-Mail-macos.zip](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/releases/latest/download/DataFortress-Mail-macos.zip) | `.zip` | Unzip and move the app to Applications. |
+| 🤖 Android | [DataFortress-Mail-android.apk](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/releases/latest/download/DataFortress-Mail-android.apk) | `.apk` | Sideload; allow installs from unknown sources. |
+| 📱 iOS | [DataFortress-Mail-ios-unsigned.ipa](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/releases/latest/download/DataFortress-Mail-ios-unsigned.ipa) | `.ipa` (unsigned) | Must be re-signed with your own certificate (e.g. AltStore, Sideloadly) before installing. |
+
+| Release | Build status | Docs |
+|---|---|---|
+| [Latest release](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/releases/latest) · [All releases](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/releases) | [![Build & Release](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/actions/workflows/build.yaml/badge.svg)](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/actions/workflows/build.yaml) | [Install guide](https://justinguese.github.io/flutter-spamfiltering-emailclient/getting-started/install/) · [Full documentation](https://justinguese.github.io/flutter-spamfiltering-emailclient/) |
+
+---
+
+## Build from source
 
 ```bash
 git clone https://github.com/JustinGuese/flutter-spamfiltering-emailclient.git

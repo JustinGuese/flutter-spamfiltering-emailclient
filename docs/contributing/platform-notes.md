@@ -4,6 +4,18 @@ This document collects platform-specific requirements, configuration constraints
 
 ---
 
+## OAuth Sign-In and Notifications per Platform
+
+Google and Microsoft sign-in (`df_oauth`) and new-mail notifications (`df_notifications`) need a little native configuration on each platform. The client IDs and redirect URIs are described in [Configuration](../getting-started/configuration.md#3-oauth-client-ids-google-and-microsoft-sign-in).
+
+- **Android**: `app/android/app/build.gradle.kts` sets the `appAuthRedirectScheme` manifest placeholder to the application ID and enables core library desugaring (required by `flutter_local_notifications`). `AndroidManifest.xml` declares AppAuth's `RedirectUriReceiverActivity` for the Google scheme (`com.datafortress.spamfilteringemailclient:/oauth2redirect`) and the Microsoft scheme (`msauth://com.datafortress.spamfilteringemailclient/...`), and the `POST_NOTIFICATIONS` permission, which Android 13 and later asks for at runtime.
+- **iOS**: `app/ios/Runner/Info.plist` registers the bundle ID and `msauth.<bundle ID>` under `CFBundleURLTypes`. Google's iOS redirect is the reversed client ID, which is a compile-time value, so add `com.googleusercontent.apps.<your-client-id-number>` to `CFBundleURLSchemes` yourself when you create the Google iOS client.
+- **macOS**: uses the iOS flow (the iOS client ID and a custom URL scheme, not a loopback address). `app/macos/Runner/Info.plist` carries the same URL types as iOS, and the reversed Google client ID must be added the same way. The existing `com.apple.security.network.client` entitlement covers the token exchange.
+- **Linux**: sign-in opens the system browser (`url_launcher`) and listens on `127.0.0.1`. Notifications go to the desktop's notification service over D-Bus, so a session without one shows none.
+- **Windows**: sign-in is the same loopback flow. Notification setup receives an app name (`DataFortress Mail`), an AppUserModelID (`DataFortress.Mail`) and a fixed GUID from `app/lib/main.dart`.
+
+---
+
 ## Linux
 
 ### System Dependencies

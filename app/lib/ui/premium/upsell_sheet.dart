@@ -1,5 +1,6 @@
-import 'package:material_ui/material_ui.dart';
+import 'package:df_funnel/df_funnel.dart';
 import 'package:df_theme/df_theme.dart';
+import 'package:material_ui/material_ui.dart';
 import '../../app/strings.dart';
 import '../../app/ui_strings.dart';
 import '../../theme/app_type.dart';
@@ -8,6 +9,10 @@ import '../../theme/app_type.dart';
 /// - Price and renewal terms clearly visible
 /// - Equal prominence close button
 /// - Zero fake timers or dark patterns
+///
+/// Note: Shared [DfUpsellSheet] from `df_funnel` cannot express visible price +
+/// renewal terms and uses an asymmetric text-button dismiss. Per PLAN-oauth-notify,
+/// [AppUpsellSheet] is retained to preserve these honesty invariants.
 class AppUpsellSheet extends StatelessWidget {
   final VoidCallback onDismiss;
   final VoidCallback onSubscribed;
@@ -18,8 +23,17 @@ class AppUpsellSheet extends StatelessWidget {
     required this.onSubscribed,
   });
 
-  static void show(BuildContext context, {VoidCallback? onSubscribed}) {
-    showModalBottomSheet(
+  static const String defaultCooldownKey = 'df_upsell_sheet_cooldown';
+  static const Duration defaultCooldownDuration = Duration(hours: 24);
+
+  /// Displays the honest upsell sheet modally. Returns [DfPaywallResult] for
+  /// compatibility with [DfPaywallPresenter] and [DfPremiumGate].
+  static Future<DfPaywallResult> show(
+    BuildContext context, {
+    String? placement,
+    VoidCallback? onSubscribed,
+  }) async {
+    final result = await showModalBottomSheet<DfPaywallResult>(
       context: context,
       isScrollControlled: true,
       backgroundColor: context.df.colors.surface,
@@ -27,13 +41,35 @@ class AppUpsellSheet extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (_) => AppUpsellSheet(
-        onDismiss: () => Navigator.of(context).pop(),
+        onDismiss: () => Navigator.of(context).pop(DfPaywallResult.cancelled),
         onSubscribed: () {
-          Navigator.of(context).pop();
+          Navigator.of(context).pop(DfPaywallResult.purchased);
           onSubscribed?.call();
         },
       ),
     );
+    return result ?? DfPaywallResult.cancelled;
+  }
+
+  /// Shows the upsell sheet if [cooldown] is ready.
+  ///
+  /// Returns `true` if shown, or `false` if blocked by cooldown.
+  static Future<bool> maybeShow(
+    BuildContext context, {
+    DfCooldown cooldown = const DfCooldown(
+      key: defaultCooldownKey,
+      duration: defaultCooldownDuration,
+    ),
+    dynamic prefs,
+    String? placement,
+    VoidCallback? onSubscribed,
+  }) async {
+    final ready = await cooldown.isReady(prefs: prefs);
+    if (!ready) return false;
+    await cooldown.mark(prefs: prefs);
+    if (!context.mounted) return false;
+    await show(context, placement: placement, onSubscribed: onSubscribed);
+    return true;
   }
 
   @override

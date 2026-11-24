@@ -31,6 +31,8 @@ All core email functionality, local intelligence, and collective defense feature
 | **Signal Ledger (Evidence Sheet)** | Yes | Yes | Inspect exact Bayesian token weights, SPF/DKIM/DMARC status, and heuristics. |
 | **Anonymous Community Blocklist** | Yes | Yes | Consumes public community blocklists and submits zero-ID cryptographic hashes. |
 | **HTML Sanitizer & Image Shield** | Yes | Yes | Blocks remote tracking pixels and strips dangerous HTML elements. |
+| **Google / Microsoft Sign-In** | Yes | Yes | OAuth2 with PKCE straight to the provider, tokens kept in the platform secure store; needs OAuth client IDs compiled into the build. |
+| **New-Mail Notifications** | Yes | Yes | Local notifications (sender and subject only): every message, bundled every 5 minutes, or hourly. |
 | **Multi-Device E2EE Filter Sync** | No | Yes | Synchronizes trained Bayes token counts across devices using AES-256-GCM and CRDT PN-counters. |
 | **On-Device ONNX Neural Scorer** | No | Yes | Secondary on-device transformer model for ambiguous message scoring. |
 

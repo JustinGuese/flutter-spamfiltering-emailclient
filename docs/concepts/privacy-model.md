@@ -75,6 +75,8 @@ graph LR
         Pass["auth_pass_<accountId>"]
         OAuth["auth_oauth_token_<accountId>"]
         Refresh["auth_oauth_refresh_<accountId>"]
+        Expires["auth_oauth_expires_<accountId>"]
+        Provider["auth_oauth_provider_<accountId>"]
     end
 
     Repo -->|Account metadata| SQLite
@@ -86,6 +88,27 @@ All credentials are delegated to `FlutterSecureStorage` (`app/lib/mail/account_r
 - **Android**: Android Keystore with EncryptedSharedPreferences.
 - **Linux**: Secret Service API via `libsecret` (GNOME Keyring / KWallet).
 - **Windows**: Windows Credential Manager.
+
+---
+
+## Google and Microsoft Sign-In
+
+An account added with "Continue with Google" or "Continue with Microsoft" never hands DataFortress a password or a token.
+
+- **Where the traffic goes**: the browser consent step and the token exchange go straight from the device to Google (`accounts.google.com`, `oauth2.googleapis.com`) or Microsoft (`login.microsoftonline.com`). The DataFortress backend is not involved, and sign-in sends nothing to it.
+- **How the code is protected**: authorization code with PKCE (S256). On iOS, Android and macOS the system browser sheet is used (AppAuth). On Windows and Linux a one-shot HTTP server listens on `127.0.0.1` only, on a random port; it rejects a callback whose `state` does not match, closes after the first callback, and times out after three minutes.
+- **Where the tokens live**: only in the platform secure store, under the `auth_oauth_*` keys above (access token, refresh token, expiry, provider). They are removed with the account.
+- **Refresh**: `AccountRepository.getAuthForAccount` refreshes an access token that expires within two minutes before any IMAP or SMTP use. If the provider answers `invalid_grant` (password changed, access revoked), the account is marked as needing sign-in again and the Accounts settings offer "Reconnect".
+
+---
+
+## New-Mail Notifications
+
+Notifications are raised locally on the device by `flutter_local_notifications` (through the shared `df_notifications` package). Nothing about them is sent to any server.
+
+- **What they contain**: the sender and the subject only, never any message text. A bundled notification lists sender names and a count.
+- **Which mail triggers one**: a message that is new in the Inbox on this sync, unread, not part of a folder's first fetch (a new account does not produce a flood), classified Inbox or ham, and with a spam score below 0.6. Newsletter and spam verdicts, Sent mail and mail imported by a search never notify.
+- **Control**: Settings → Notifications chooses Off, On every new message, Bundled every 5 minutes, or Hourly summary. The OS permission is requested through an in-app explanation first.
 
 ---
 

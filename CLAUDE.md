@@ -40,6 +40,8 @@ dart run flutter_native_splash:create
 
 Backend URL is a compile-time define: `--dart-define=BACKEND_URL=...` (default: the hosted backend, `https://emailprogram-spamfilter-backend-api.datafortress.cloud`; defined once in `app/lib/api/backend_config.dart`); native builds also read `REVENUECAT_API_KEY`. Without a backend the mail client and local filter still work; community sync and Pro do not.
 
+OAuth sign-in client IDs are compile-time defines too (`GOOGLE_OAUTH_CLIENT_ID_IOS` (also macOS) / `_ANDROID` / `_DESKTOP`, `GOOGLE_OAUTH_CLIENT_SECRET_DESKTOP`, `MS_OAUTH_CLIENT_ID`; read in `app/lib/mail/oauth/oauth_config.dart`). Without them the sign-in buttons show "not configured in this build" and password accounts work as before.
+
 ## Local setup gotchas
 
 - `app/pubspec.yaml` depends on `df_flutter_shared` by **git** (`ref: main`, no tags). For local work, `app/pubspec_overrides.yaml` (gitignored, never commit) points those packages at a sibling checkout. Its relative paths depend on where the repo sits; if `pub get` says a `df_*` path doesn't exist, the folder layout changed — fix the `../` depth.
@@ -60,6 +62,10 @@ Backend URL is a compile-time define: `--dart-define=BACKEND_URL=...` (default: 
 
 **Attachments are listed at sync, downloaded on tap.** `_storeMessage` writes names and IMAP part numbers to `attachments` (`extractAttachments`, `app/lib/mail/attachments.dart`); bytes stay on the server until `SyncEngine.downloadAttachment` re-fetches the message and caches the part as a plain file under `<app support>/attachments/<account>/`. Never trust a stored UID for that: mail moved to Junk keeps its old UID, so the copy must match the stored `Message-ID`, with a header search as fallback. Sender-supplied file names go through `safeFileName`, and runnable types (`isRunnableFileName`) are saved, never opened. Sending builds `multipart/mixed` in `buildOutgoingMessage`; total capped by `maxOutgoingAttachmentBytes`. macOS entitlements need `network.client` and `files.user-selected.read-write`.
 
+**OAuth and token refresh.** Google/Microsoft accounts store `auth_oauth_*` keys (token, refresh token, expiry, provider) in the secure store. `AccountRepository.getAuthForAccount` is the only credential read for every caller and refreshes a token that expires within 2 minutes (`OAuthService`, over the shared `df_oauth`); a provider `invalid_grant` throws `ReauthRequiredException` and Settings → Accounts offers Reconnect. macOS uses the iOS client and a custom URL scheme, never the loopback flow (that is Windows/Linux only).
+
+**New-mail notifications.** `SyncEngine.onNewMail` (new, unread, Inbox, not a folder's first fetch, labelled Inbox/ham, score < 0.6) feeds `NewMailNotifier` (`app/lib/notifications/`), which batches by `notify_mode` (`off`, `instant` default, `every5min`, `hourly`; stored in the `settings` table). `AppBootstrap` owns the timers (sync every 60 s in `instant`, else 5 min). Delivery goes through the shared `df_notifications` (`DfReminderService.show`, desktop-capable). Only while the process runs: there is no mobile background fetch.
+
 **Sync serialization.** All account syncs share one IMAP connection; `SyncEngine.syncAccount` queues them and joins duplicate requests per account. Keep that invariant when adding IMAP work. Only the Inbox, unlabeled folders and Sent are synced; Sent (`classify: false`) is never scored, moved to Junk or used for training, and virtual folders (Gmail All Mail etc.) are skipped. Folder listing must stay recursive or nested Sent/Trash folders disappear.
 
 **Platform split.** `AppPlatformServices` (`platform/platform_services.dart`) has two implementations chosen at startup: `native_services.dart` (iOS/Android/macOS: native Firebase Auth + RevenueCat) and `desktop_services.dart` (Windows/Linux: REST Firebase auth, hosted-checkout billing, no-op error sinks). `main.dart` injects the database and services via `ProviderScope` overrides; tests do the same.
@@ -72,6 +78,7 @@ Backend URL is a compile-time define: `--dart-define=BACKEND_URL=...` (default: 
 
 - All user-facing copy goes through `AppStrings` / `UiStrings` (`app/lib/app/`); no literals in widgets.
 - Theme comes from `df_theme` via `DfBrandPresets.dataFortress`-based brand in `app/lib/theme/app_brand.dart` ("Ledger Desk": Fraunces / Public Sans / JetBrains Mono, bundled fonts, no runtime Google Fonts). Read colors from `context.df`, not hard-coded values.
+- `df_oauth` (sign-in) and `df_notifications` (local notifications) are shared packages added for this; fix shared behavior in `df_flutter_shared` (additive only, consumers track `main`), not in the app.
 - `df_*` shared packages already cover many things (settings scaffold, funnel/paywall, billing, analytics); check there before hand-rolling.
 - `app/assets/prior_model.json` is a hand-curated seed, not corpus-trained. Don't claim otherwise; never train on TREC data (research-only licence).
 

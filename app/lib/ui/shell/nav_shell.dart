@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:df_app_shell/df_app_shell.dart';
+import 'package:df_notifications/df_notifications.dart';
 import '../../app/strings.dart';
 import '../mailbox/mailbox_view.dart';
 import '../reader/reader_view.dart';
@@ -19,11 +20,60 @@ class NavIndexNotifier extends Notifier<int> {
 
 final navIndexProvider = NotifierProvider<NavIndexNotifier, int>(NavIndexNotifier.new);
 
-class AppNavShell extends ConsumerWidget {
+/// Routes a notification payload: if matching `msg:<id>`, switches to the Mail tab
+/// (index 0) and selects the message with ID `<id>`. If `id` is empty or 'bundle',
+/// clears the selected message so the mailbox list is shown.
+void routeNotificationPayload(dynamic ref, String? payload) {
+  if (payload == null || !payload.startsWith('msg:')) return;
+  final msgId = payload.substring(4);
+  ref.read(navIndexProvider.notifier).set(0);
+  if (msgId.isNotEmpty && msgId != 'bundle') {
+    ref.read(selectedMessageIdProvider.notifier).set(msgId);
+  } else {
+    ref.read(selectedMessageIdProvider.notifier).set(null);
+  }
+}
+
+class AppNavShell extends ConsumerStatefulWidget {
   const AppNavShell({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AppNavShell> createState() => _AppNavShellState();
+}
+
+class _AppNavShellState extends ConsumerState<AppNavShell> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkNotificationTap();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkNotificationTap();
+    }
+  }
+
+  void _checkNotificationTap() {
+    final reminderService = ref.read(dfReminderServiceProvider);
+    final payload = reminderService.consumePendingPayload();
+    if (payload != null) {
+      routeNotificationPayload(ref, payload);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final currentIndex = ref.watch(navIndexProvider);
     final selectedMsgId = ref.watch(selectedMessageIdProvider);
     final Widget foldersPane = FoldersSidebar(onCompose: () => _openCompose(context));

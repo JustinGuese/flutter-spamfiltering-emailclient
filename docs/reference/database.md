@@ -23,7 +23,7 @@ Stores configured IMAP/SMTP mail accounts.
 | `imapPort` | `IntColumn` | | IMAP port (e.g. 993). |
 | `smtpHost` | `TextColumn` | | SMTP server hostname. |
 | `smtpPort` | `IntColumn` | | SMTP port (e.g. 465 or 587). |
-| `authType` | `TextColumn` | `default: 'password'` | Authentication type (`password` or `oauth2`). |
+| `authType` | `TextColumn` | `default: 'password'` | Authentication type: `password`, `oauth_google` or `oauth_microsoft`. |
 | `createdAt` | `DateTimeColumn` | | Account creation timestamp. |
 
 ---
@@ -142,6 +142,14 @@ Key-value preferences and synchronization metadata.
 |---|---|---|---|
 | `key` | `TextColumn` | `primaryKey` | Setting identifier (e.g. `blocklist_version`, `blocklist_last_sync`). |
 | `value` | `TextColumn` | | Value string. |
+
+Keys written by the notification feature (`app/lib/notifications/notify_prefs.dart`):
+
+| Key | Values | Meaning |
+|---|---|---|
+| `notify_mode` | `off`, `instant`, `every5min`, `hourly` | The chosen notification mode. Absent means `instant`. |
+| `notify_permission_blocked` | `true` / `false` | The OS refused notification permission, so Settings shows a "blocked in system settings" hint. |
+| `notify_soft_asked` | `true` / `false` | The in-app notification explanation was already offered once. |
 
 ---
 

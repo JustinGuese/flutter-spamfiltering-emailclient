@@ -1,5 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:df_app_shell/df_app_shell.dart';
+import 'package:df_settings/df_settings.dart';
 import 'package:df_theme/df_theme.dart';
 import '../../app/strings.dart';
 import '../../platform/platform_services.dart';
@@ -10,58 +12,38 @@ class AppearanceTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final palette = context.df.colors;
+    final themeMode = ref.watch(dfThemeModeProvider);
     final isComfortable = ref.watch(listDensityComfortableProvider);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: palette.surface,
-        border: Border(bottom: BorderSide(color: palette.hairline)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            AppStrings.settingsAppearance,
-            style: TextStyle(
-              fontFamily: 'Public Sans',
-              fontWeight: FontWeight.w600,
-              fontSize: 14,
-              color: palette.textPrimary,
-            ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        DfThemeModeTile(
+          currentMode: themeMode,
+          onModeChanged: (mode) {
+            ref.read(dfThemeModeProvider.notifier).setThemeMode(mode);
+          },
+        ),
+        Divider(height: 1, thickness: 1, color: palette.hairline),
+        DfSettingsTile(
+          title: const Text(AppStrings.settingsDensity),
+          subtitle: Text(
+            isComfortable
+                ? AppStrings.densityComfortable
+                : AppStrings.densityCompact,
           ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                AppStrings.settingsDensity,
-                style: TextStyle(
-                  fontFamily: 'Public Sans',
-                  fontSize: 13,
-                  color: palette.textSecondary,
-                ),
-              ),
-              SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment(
-                    value: true,
-                    label: Text('Comfortable', style: TextStyle(fontSize: 12)),
-                  ),
-                  ButtonSegment(
-                    value: false,
-                    label: Text('Compact', style: TextStyle(fontSize: 12)),
-                  ),
-                ],
-                selected: {isComfortable},
-                onSelectionChanged: (set) {
-                  ref.read(listDensityComfortableProvider.notifier).set(set.first);
-                },
-              ),
-            ],
+          trailing: Switch(
+            value: isComfortable,
+            activeThumbColor: palette.brand.base,
+            onChanged: (val) {
+              ref.read(listDensityComfortableProvider.notifier).set(val);
+            },
           ),
-        ],
-      ),
+          onTap: () {
+            ref.read(listDensityComfortableProvider.notifier).toggle();
+          },
+        ),
+      ],
     );
   }
 }
