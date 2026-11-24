@@ -38,6 +38,7 @@ Collective defense works without identifying anyone. Clients share MinHash finge
   <p align="center">
     <img src="screenshots/mainview.png" alt="The Ledger Desk Interface" width="750">
   </p>
+
 - **Transparent Local Spam Filter**: Local Robinson-Fisher Bayesian analysis with 3-way classification (Inbox · Newsletter · Spam) and an interactive Evidence Sheet that details exact token weights, SPF/DKIM/DMARC authentication signals, and heuristic flags.
 
   <p align="center">
@@ -61,6 +62,7 @@ Collective defense works without identifying anyone. Clients share MinHash finge
   <p align="center">
     <img src="screenshots/protection-stats.png" alt="Your Protection Replay Screen" width="750">
   </p>
+
 - **Safe Auto-Unsubscribe**: When you mark an email as spam, the app can automatically unsubscribe via RFC 8058 One-Click (HTTPS POST) or RFC 2369 mailto. Unsubscribing talks directly to the sender's published endpoint—never through DataFortress servers. Built with comprehensive safety: a 10-second undo window, SSRF protection (HTTPS port 443 only, private/internal IP blocking, no redirects), clean request hygiene (no cookies or auth headers), sender authentication check (requires DMARC or DKIM pass), rate limiting (20/day), 30-day idempotency deduplication, and an on-demand Unsubscribe button in the reader view. Off switch in Settings (`auto_unsubscribe`).
 - **Privacy-First Architecture**: Aggressive client-side HTML sanitization (strips scripts, forms, and inline styles), remote image blocking by default with per-sender overrides, and hardware-backed credential storage via OS keychains.
 - **Anonymous Collective Defense**: Zero-ID spam and ham reporting using privacy-preserving MinHash LSH fingerprinting and hash proof-of-work—no user identifiers, tokens, or email bodies are ever transmitted.
@@ -72,16 +74,16 @@ Collective defense works without identifying anyone. Clients share MinHash finge
 
 Every link below points at the **newest release**, so it never goes stale. Builds are produced by the [Build & Release workflow](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/actions/workflows/build.yaml); browse older versions on the [releases page](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/releases).
 
-| Platform | Download | Format | Notes |
-|---|---|---|---|
-| 🐧 Linux (x64) | [DataFortress-Mail-linux-x64.tar.gz](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/releases/latest/download/DataFortress-Mail-linux-x64.tar.gz) | `.tar.gz` | Extract and run the bundled binary. Needs `gnome-keyring` / `libsecret` for credential storage. |
-| 🪟 Windows (x64) | [DataFortress-Mail-windows-x64.zip](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/releases/latest/download/DataFortress-Mail-windows-x64.zip) | `.zip` | Extract and run the `.exe`. |
-| 🍎 macOS | [DataFortress-Mail-macos.zip](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/releases/latest/download/DataFortress-Mail-macos.zip) | `.zip` | Unzip and move the app to Applications. |
-| 🤖 Android | [DataFortress-Mail-android.apk](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/releases/latest/download/DataFortress-Mail-android.apk) | `.apk` | Sideload; allow installs from unknown sources. |
-| 📱 iOS | [DataFortress-Mail-ios-unsigned.ipa](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/releases/latest/download/DataFortress-Mail-ios-unsigned.ipa) | `.ipa` (unsigned) | Must be re-signed with your own certificate (e.g. AltStore, Sideloadly) before installing. |
+| Platform         | Download                                                                                                                                                           | Format            | Notes                                                                                           |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------- | ----------------------------------------------------------------------------------------------- |
+| 🐧 Linux (x64)   | [DataFortress-Mail-linux-x64.tar.gz](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/releases/latest/download/DataFortress-Mail-linux-x64.tar.gz) | `.tar.gz`         | Extract and run the bundled binary. Needs `gnome-keyring` / `libsecret` for credential storage. |
+| 🪟 Windows (x64) | [DataFortress-Mail-windows-x64.zip](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/releases/latest/download/DataFortress-Mail-windows-x64.zip)   | `.zip`            | Extract and run the `.exe`.                                                                     |
+| 🍎 macOS         | [DataFortress-Mail-macos.zip](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/releases/latest/download/DataFortress-Mail-macos.zip)               | `.zip`            | Unzip and move the app to Applications.                                                         |
+| 🤖 Android       | [DataFortress-Mail-android.apk](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/releases/latest/download/DataFortress-Mail-android.apk)           | `.apk`            | Sideload; allow installs from unknown sources.                                                  |
+| 📱 iOS           | [DataFortress-Mail-ios-unsigned.ipa](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/releases/latest/download/DataFortress-Mail-ios-unsigned.ipa) | `.ipa` (unsigned) | Must be re-signed with your own certificate (e.g. AltStore, Sideloadly) before installing.      |
 
-| Release | Build status | Docs |
-|---|---|---|
+| Release                                                                                                                                                                                        | Build status                                                                                                                                                                                                                 | Docs                                                                                                                                                                                               |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [Latest release](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/releases/latest) · [All releases](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/releases) | [![Build & Release](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/actions/workflows/build.yaml/badge.svg)](https://github.com/JustinGuese/flutter-spamfiltering-emailclient/actions/workflows/build.yaml) | [Install guide](https://justinguese.github.io/flutter-spamfiltering-emailclient/getting-started/install/) · [Full documentation](https://justinguese.github.io/flutter-spamfiltering-emailclient/) |
 
 ---
@@ -92,8 +94,7 @@ Every link below points at the **newest release**, so it never goes stale. Build
 git clone https://github.com/JustinGuese/flutter-spamfiltering-emailclient.git
 cd flutter-spamfiltering-emailclient/app
 flutter pub get
-flutter run
-GDK_BACKEND=x11 flutter run -d linux --debug
+GDK_BACKEND=x11 flutter run -d linux --dart-define-from-file=oauth.defines.json --debug
 ```
 
 ---
