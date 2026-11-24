@@ -312,10 +312,33 @@ class SyncEngine {
     final sanitized = rawHtml != null ? HtmlSanitizer.sanitize(rawHtml, blockRemoteImages: true) : null;
     final files = extractAttachments(msg);
 
+    final headersMap = <String, List<String>>{};
+    for (final h in msg.headers ?? <Header>[]) {
+      final val = h.value;
+      if (val != null) {
+        headersMap.putIfAbsent(h.name, () => []).add(val);
+      }
+    }
+    final listUnsubHeaders = [
+      for (final h in msg.headers ?? <Header>[])
+        if (h.name.toLowerCase() == 'list-unsubscribe' && h.value != null)
+          h.value!
+    ];
+    final listUnsubscribe = listUnsubHeaders.isNotEmpty
+        ? listUnsubHeaders.join(', ')
+        : msg.getHeaderValue('list-unsubscribe');
+    final listUnsubscribePost = msg.getHeaderValue('list-unsubscribe-post');
+
+    final authResults = sc.AuthResults.parse(headersMap);
+    final senderAuthPass = (authResults.dmarc == sc.AuthVerdict.pass ||
+            authResults.dkim == sc.AuthVerdict.pass)
+        ? 1
+        : 0;
+
     db.db.execute('''
       INSERT OR REPLACE INTO messages
-      (id, account_id, folder_id, uid, message_id, subject, sender, sender_domain, recipient_addrs, cc_addrs, date, snippet, is_read, has_attachments, classification_label, spam_score)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (id, account_id, folder_id, uid, message_id, subject, sender, sender_domain, recipient_addrs, cc_addrs, date, snippet, is_read, has_attachments, classification_label, spam_score, list_unsubscribe, list_unsubscribe_post, sender_auth_pass)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', [
       msgId,
       accountId,
@@ -333,6 +356,9 @@ class SyncEngine {
       files.isEmpty ? 0 : 1,
       'inbox',
       0.0,
+      listUnsubscribe,
+      listUnsubscribePost,
+      senderAuthPass,
     ]);
 
     db.db.execute('''

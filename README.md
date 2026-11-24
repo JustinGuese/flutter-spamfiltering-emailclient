@@ -61,6 +61,7 @@ Collective defense works without identifying anyone. Clients share MinHash finge
   <p align="center">
     <img src="screenshots/protection-stats.png" alt="Your Protection Replay Screen" width="750">
   </p>
+- **Safe Auto-Unsubscribe**: When you mark an email as spam, the app can automatically unsubscribe via RFC 8058 One-Click (HTTPS POST) or RFC 2369 mailto. Unsubscribing talks directly to the sender's published endpoint—never through DataFortress servers. Built with comprehensive safety: a 10-second undo window, SSRF protection (HTTPS port 443 only, private/internal IP blocking, no redirects), clean request hygiene (no cookies or auth headers), sender authentication check (requires DMARC or DKIM pass), rate limiting (20/day), 30-day idempotency deduplication, and an on-demand Unsubscribe button in the reader view. Off switch in Settings (`auto_unsubscribe`).
 - **Privacy-First Architecture**: Aggressive client-side HTML sanitization (strips scripts, forms, and inline styles), remote image blocking by default with per-sender overrides, and hardware-backed credential storage via OS keychains.
 - **Anonymous Collective Defense**: Zero-ID spam and ham reporting using privacy-preserving MinHash LSH fingerprinting and hash proof-of-work—no user identifiers, tokens, or email bodies are ever transmitted.
 - **Open-Core Model**: The client application and core `spam_core` engine are fully open source. Hosted community reputation aggregation and encrypted sync services represent commercial extensions.

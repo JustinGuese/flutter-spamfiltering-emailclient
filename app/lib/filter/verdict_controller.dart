@@ -9,6 +9,7 @@ import '../db/database.dart';
 import '../mail/account_repository.dart';
 import '../mail/imap_service.dart';
 import '../mail/sync_engine.dart';
+import '../mail/unsubscribe_service.dart';
 import '../premium/crdt_counters.dart';
 import '../premium/filter_sync.dart';
 import 'imap_flags.dart';
@@ -37,6 +38,7 @@ class VerdictController {
   final AccountRepository? accountRepo;
   final CommunityReportClient? reportClient;
   final FilterSyncService? filterSyncService;
+  final UnsubscribeService? unsubscribeService;
   final bool isPro;
   final bool isSignedIn;
   final void Function()? onFirstSpamNotice;
@@ -47,6 +49,10 @@ class VerdictController {
   UndoRecord? _activeUndo;
   DateTime? _lastUploadTime;
   Timer? _debounceTimer;
+  /// One pending auto-unsubscribe per message, so spam-clicking several
+  /// messages in a row does not drop all but the last.
+  final Map<String, Timer> _pendingUnsubscribes = {};
+  bool _isExecutingUndo = false;
 
   VerdictController({
     required this.db,
@@ -54,6 +60,7 @@ class VerdictController {
     this.accountRepo,
     this.reportClient,
     this.filterSyncService,
+    this.unsubscribeService,
     this.isPro = false,
     this.isSignedIn = false,
     this.onFirstSpamNotice,
@@ -61,6 +68,9 @@ class VerdictController {
   });
 
   UndoRecord? get activeUndo => _activeUndo;
+  Timer? get pendingUnsubscribeTimer => _pendingUnsubscribes.values.lastOrNull;
+  String? get pendingUnsubscribeMessageId => _pendingUnsubscribes.keys.lastOrNull;
+  bool hasPendingUnsubscribe(String messageId) => _pendingUnsubscribes.containsKey(messageId);
 
   Future<int> applyVerdict({
     required String messageId,
@@ -127,6 +137,8 @@ class VerdictController {
     _handleCommunityReporting(normalized, prevLabel, newLabel);
     _triggerPremiumSyncDebounced();
 
+    _handleUnsubscribeScheduling(messageId, newLabel, isUndo: _isExecutingUndo);
+
     _activeUndo?.timer.cancel();
     _activeUndo = UndoRecord(
       messageId: messageId,
@@ -136,6 +148,28 @@ class VerdictController {
       timer: Timer(const Duration(seconds: 8), () => _activeUndo = null),
     );
     return similarCount;
+  }
+
+  void _handleUnsubscribeScheduling(String messageId, Label newLabel, {required bool isUndo}) {
+    // Any non-spam verdict, and spam applied as the undo of a ham verdict,
+    // cancels this message's pending unsubscribe and never schedules one.
+    _cancelPendingUnsubscribe(messageId);
+    if (newLabel != Label.spam || isUndo) return;
+
+    // Spam click schedules unsubscribe after 10 seconds (past the 8 s undo window).
+    final service = unsubscribeService;
+    if (service == null) return;
+    _pendingUnsubscribes[messageId] = Timer(const Duration(seconds: 10), () {
+      _pendingUnsubscribes.remove(messageId);
+      service.unsubscribeForMessage(messageId, trigger: UnsubscribeTrigger.verdict).catchError((Object e, StackTrace st) {
+        logError('auto unsubscribe $messageId', e, st);
+        return const UnsubscribeOutcome(UnsubscribeStatus.failed);
+      });
+    });
+  }
+
+  void _cancelPendingUnsubscribe(String messageId) {
+    _pendingUnsubscribes.remove(messageId)?.cancel();
   }
 
   void _handleCommunityReporting(Normalized normalized, Label prev, Label next) {
@@ -247,9 +281,15 @@ class VerdictController {
   void undo() {
     final record = _activeUndo;
     if (record == null) return;
+    _cancelPendingUnsubscribe(record.messageId);
     record.timer.cancel();
     _activeUndo = null;
-    applyVerdict(messageId: record.messageId, newLabel: record.previousLabel);
+    _isExecutingUndo = true;
+    try {
+      applyVerdict(messageId: record.messageId, newLabel: record.previousLabel);
+    } finally {
+      _isExecutingUndo = false;
+    }
   }
 }
 
@@ -269,6 +309,7 @@ final verdictControllerProvider = Provider<VerdictController>((ref) => VerdictCo
   accountRepo: ref.watch(accountRepositoryProvider),
   reportClient: CommunityReportClient(),
   filterSyncService: ref.watch(filterSyncServiceProvider),
+  unsubscribeService: ref.watch(unsubscribeServiceProvider),
   isPro: ref.watch(dfEffectivePremiumProvider),
   isSignedIn: ref.watch(currentUserProvider) != null,
   onFirstSpamNotice: () => ref.read(sharingNoticeVisibleProvider.notifier).show(),

@@ -66,6 +66,9 @@ Synchronized email message envelopes and classification metadata.
 | `hasAttachments`| `BoolColumn` | `default: false` | True when the message has at least one row in `attachments` (set from the same list when the message is stored). |
 | `classificationLabel` | `TextColumn` | `default: 'inbox'` | Current label: `inbox`, `spam`, `newsletter`. |
 | `spamScore` | `RealColumn` | `default: 0.0` | Computed spam probability score (0.0 to 1.0). |
+| `list_unsubscribe` | `TextColumn` | `nullable` | Raw `List-Unsubscribe` header from email envelope (e.g. `<https://...>, <mailto:...>`). Added by `_migrate()`. |
+| `list_unsubscribe_post` | `TextColumn` | `nullable` | Raw `List-Unsubscribe-Post` header (e.g. `List-Unsubscribe=One-Click`). Added by `_migrate()`. |
+| `sender_auth_pass` | `IntColumn` | `default: 0` | `1` if receiving server recorded `dmarc=pass` or `dkim=pass` in `Authentication-Results`, `0` otherwise. Added by `_migrate()`. |
 
 ---
 
@@ -140,7 +143,7 @@ Key-value preferences and synchronization metadata.
 
 | Column | Declared type | Constraints | Description |
 |---|---|---|---|
-| `key` | `TextColumn` | `primaryKey` | Setting identifier (e.g. `blocklist_version`, `blocklist_last_sync`). |
+| `key` | `TextColumn` | `primaryKey` | Setting identifier (e.g. `blocklist_version`, `blocklist_last_sync`, `auto_unsubscribe`). |
 | `value` | `TextColumn` | | Value string. |
 
 Keys written by the notification feature (`app/lib/notifications/notify_prefs.dart`):
@@ -150,6 +153,7 @@ Keys written by the notification feature (`app/lib/notifications/notify_prefs.da
 | `notify_mode` | `off`, `instant`, `every5min`, `hourly` | The chosen notification mode. Absent means `instant`. |
 | `notify_permission_blocked` | `true` / `false` | The OS refused notification permission, so Settings shows a "blocked in system settings" hint. |
 | `notify_soft_asked` | `true` / `false` | The in-app notification explanation was already offered once. |
+| `auto_unsubscribe` | `true` / `false` | Whether marking a message as spam also unsubscribes from the sender (RFC 8058 one-click or mailto). Absent means `true`. |
 
 ---
 
@@ -190,12 +194,27 @@ Full-text index behind the Search tab. Not declared in `tables.dart`; it is crea
 
 Three triggers on `bodies` (insert, update, delete) keep it current, so no sync path has to know about it. `AppDatabase` sets `PRAGMA recursive_triggers = ON` so that `INSERT OR REPLACE` (what the sync engine uses) fires the delete trigger. If the table does not exist yet, it is created and filled from the mail already stored. The index holds a copy of the message text and never leaves the device.
 
+### 13. `unsubscribe_log`
+Audit history and idempotency tracking for RFC 8058 One-Click and RFC 2369 mailto unsubscribe actions. Defined in `database.dart` with an index on `(account_id, sender_domain)`.
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | `INTEGER` | Auto-increment primary key. |
+| `account_id` | `TEXT` | Account ID that received the message. |
+| `sender_domain` | `TEXT` | Extracted sender domain. |
+| `message_id` | `TEXT` | Local message ID triggering the unsubscribe (`messages.id`). Nullable. |
+| `method` | `TEXT` | Method executed: `'one_click'`, `'mailto'`, or null if skipped prior to dispatch. |
+| `status` | `TEXT` | Execution status: `sent`, `failed`, `skippedDisabled`, `skippedNoTarget`, `skippedUnauthenticated`, `skippedDuplicate`, `skippedRateLimited`, `skippedSelfDomain`, `skippedUnsafeUrl`. |
+| `created_at` | `TEXT` | ISO-8601 UTC timestamp of the attempt. |
+
+An index `idx_unsubscribe_log_account_sender` on `(account_id, sender_domain)` speeds up 30-day idempotency and backoff lookups.
+
 ---
 
 ## Schema Management
 
 - Database operations go through `AppDatabase` (`app/lib/db/database.dart`); the UI and services run SQL on `db.db` directly.
-- Tables are created with `CREATE TABLE IF NOT EXISTS` on every start. There is no schema version. `AppDatabase._migrate()` runs after table creation and adds missing columns one at a time (it checks `PRAGMA table_info` first, so it is safe on fresh and existing databases); currently it adds `messages.cc_addrs`. Any further change to an existing table needs a step there. `_createSearchIndex()` runs last and is idempotent.
+- Tables are created with `CREATE TABLE IF NOT EXISTS` on every start. There is no schema version. `AppDatabase._migrate()` runs after table creation and adds missing columns one at a time (it checks `PRAGMA table_info` first, so it is safe on fresh and existing databases); currently it adds `messages.cc_addrs`, `messages.list_unsubscribe`, `messages.list_unsubscribe_post`, and `messages.sender_auth_pass`, and creates `unsubscribe_log` with `idx_unsubscribe_log_account_sender`. Any further change to an existing table needs a step there. `_createSearchIndex()` runs last and is idempotent.
 - Bayesian counts implement the `TokenStore` interface via `TokenStoreDrift` (`app/lib/filter/token_store_drift.dart`).
 - Password credentials are **never** stored in the SQLite database; they are stored in the OS platform keychain/secret storage (`libsecret` on Linux, Keychain on macOS/iOS, DPAPI/Credential Manager on Windows, EncryptedSharedPreferences on Android).
 

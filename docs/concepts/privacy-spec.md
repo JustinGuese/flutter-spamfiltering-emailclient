@@ -79,3 +79,46 @@ Submits a dispute when a user rescues a falsely classified email from Junk to In
   Exempt under the strictly necessary criterion for delivering requested cybersecurity and email filtering protection.
 - **User Choice:**
   Community sharing is enabled by default with clear inline disclosure upon first spam classification and can be toggled off at any time in Settings.
+
+---
+
+## 5. Unsubscribe Protocol & Safety Specification
+
+DataFortress Mail implements RFC 8058 One-Click unsubscribe and RFC 2369 mailto unsubscribe directly from the client device. This protocol functions entirely outside the backend infrastructure:
+
+### Network Isolation
+- **Direct Endpoints Only:** HTTPS POST requests connect directly to the host specified in `List-Unsubscribe`. Mailto requests are sent via the user's existing authenticated SMTP server.
+- **Zero Backend Ingestion:** The DataFortress backend never receives, proxies, logs, or coordinates unsubscribe requests.
+- **No Third-Party Trackers:** Plain HTTP GET links (URLs lacking RFC 8058 `List-Unsubscribe-Post: List-Unsubscribe=One-Click`) are intentionally never automated or fetched, preventing tracking or liveness confirmation.
+
+### Exact Payload & Request Specification
+
+#### RFC 8058 One-Click HTTPS POST
+- **Method:** `POST`
+- **Target URL:** Published `List-Unsubscribe` HTTPS URI (standard port 443 only).
+- **Headers:**
+  - `Content-Type: application/x-www-form-urlencoded`
+  - `User-Agent: DataFortress-Mail/1.0`
+  - Zero cookies, zero platform tokens, zero authorization headers, zero installation or hardware IDs.
+- **Body:** `List-Unsubscribe=One-Click`
+- **Redirects:** `followRedirects: false` (3xx redirects are treated as `failed` and not pursued).
+- **Timeout:** 10 seconds.
+
+#### RFC 2369 Mailto
+- **Envelope:** Sent through user's active IMAP/SMTP account credentials.
+- **Recipient:** Exactly one destination email parsed from `mailto:`.
+- **Subject / Body:** Parsed from URI parameters if present (capped at 200 characters) or default `unsubscribe`.
+- **Header Injection Guard:** Any newline (`\r` or `\n`) or header parameters (`cc`, `bcc`) invalidate the target.
+- **Sent Folder:** Message is sent via SMTP but not appended to the IMAP Sent folder.
+
+### Safety Guards Matrix
+
+| Guard | Condition & Action |
+|---|---|
+| **Undo Window** | Verdict trigger executes after a 10-second delay. Any user `undo()` or non-spam verdict cancels the pending action. Undoing a ham verdict to restore spam does not schedule an unsubscribe. |
+| **SSRF & URL Validation** | Enforced by `UnsubscribeGuard` (`app/lib/mail/unsubscribe_guard.dart`). HTTPS only, port 443 only, no userinfo, host not localhost/`.local`/`.internal`. Hostname is pre-resolved via DNS: all resolved IPv4 and IPv6 addresses must be public (blocks `127.0.0.0/8`, `::1`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`, `fe80::/10`, `100.64.0.0/10` CGNAT, `fc00::/7` ULA). |
+| **Sender Authentication** | Verdict-based trigger requires verified authentication (`dmarc=pass` or `dkim=pass` in `Authentication-Results`). Unauthenticated emails skip automated unsubscribe (`skippedUnauthenticated`). Manual user click in reader bypasses this requirement. |
+| **Rate Capping** | Maximum of 20 unsubscribe attempts across all accounts per rolling 24-hour window (`skippedRateLimited`). |
+| **Idempotency** | Tracked in local SQLite table `unsubscribe_log`. Successful attempts deduplicated for 30 days per `(account_id, sender_domain)` (`skippedDuplicate`). Failures back off for 24 hours, with a hard cap of 3 attempts. |
+| **Self-Domain Guard** | Skipped if the sender domain matches the receiving account domain (`skippedSelfDomain`). |
+| **Settings Off Switch** | Key `auto_unsubscribe` in `settings` table (defaults to `true`). When toggled off, verdict triggers are skipped (`skippedDisabled`). |

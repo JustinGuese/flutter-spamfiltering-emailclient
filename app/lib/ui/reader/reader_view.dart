@@ -6,8 +6,11 @@ import 'package:spam_core/spam_core.dart';
 import '../../db/database.dart';
 import '../../mail/account_repository.dart';
 import '../../mail/attachments.dart';
+import '../../mail/list_unsubscribe.dart';
 import '../../mail/sync_engine.dart';
+import '../../mail/unsubscribe_service.dart';
 import '../../app/log.dart';
+import '../../app/unsubscribe_strings.dart';
 import 'attachment_strip.dart';
 import '../../mail/html_to_text.dart';
 import '../../mail/reply_builder.dart';
@@ -61,6 +64,25 @@ class ReaderView extends ConsumerStatefulWidget {
 class _ReaderViewState extends ConsumerState<ReaderView> {
   Label? _stampLabel;
   int _stampCount = 0;
+  bool _unsubscribing = false;
+
+  Future<void> _manualUnsubscribe(String messageId) async {
+    if (_unsubscribing) return;
+    setState(() => _unsubscribing = true);
+    try {
+      final service = ref.read(unsubscribeServiceProvider);
+      await service.unsubscribeForMessage(
+        messageId,
+        trigger: UnsubscribeTrigger.manual,
+      );
+    } catch (e, st) {
+      logError('manual unsubscribe', e, st);
+    } finally {
+      if (mounted) {
+        setState(() => _unsubscribing = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -97,6 +119,50 @@ class _ReaderViewState extends ConsumerState<ReaderView> {
     final storedVerdict = filterService.getStoredVerdict(id);
 
     final who = parseSender(sender);
+    var senderDomain = (row['sender_domain'] as String?)?.toLowerCase().trim() ?? '';
+    if (senderDomain.isEmpty) {
+      final senderRaw = row['sender'] as String? ?? '';
+      final at = senderRaw.lastIndexOf('@');
+      if (at != -1 && at < senderRaw.length - 1) {
+        var dom = senderRaw.substring(at + 1).trim();
+        if (dom.endsWith('>')) dom = dom.substring(0, dom.length - 1).trim();
+        senderDomain = dom.toLowerCase();
+      }
+    }
+
+    final listUnsub = row['list_unsubscribe'] as String?;
+    final listUnsubPost = row['list_unsubscribe_post'] as String?;
+    final targets = parseListUnsubscribe(listUnsub, listUnsubPost);
+    final hasTarget = targets.oneClickUrl != null || targets.mailto != null;
+
+    final unsubLogs = (senderDomain.isNotEmpty)
+        ? db.db.select(
+            'SELECT status, sender_domain FROM unsubscribe_log '
+            'WHERE message_id = ? OR sender_domain = ? '
+            'ORDER BY id DESC',
+            [id, senderDomain],
+          )
+        : db.db.select(
+            'SELECT status, sender_domain FROM unsubscribe_log '
+            'WHERE message_id = ? '
+            'ORDER BY id DESC',
+            [id],
+          );
+
+    final isSent = unsubLogs.any((r) => r['status'] == 'sent' || r['status'] == UnsubscribeStatus.sent.name);
+    final hasFailed = !isSent && unsubLogs.isNotEmpty;
+
+    var domain = senderDomain;
+    if (domain.isEmpty && who.email.contains('@')) {
+      domain = who.email.substring(who.email.lastIndexOf('@') + 1).trim();
+    }
+    if (domain.isEmpty && unsubLogs.isNotEmpty) {
+      domain = (unsubLogs.first['sender_domain'] as String?) ?? '';
+    }
+    final unsubscribedText = domain.isNotEmpty
+        ? UnsubscribeStrings.unsubscribedFrom(domain)
+        : UnsubscribeStrings.unsubscribed;
+
     final verdict = storedVerdict ??
         (spamScore > 0
             ? Verdict(
@@ -226,8 +292,41 @@ class _ReaderViewState extends ConsumerState<ReaderView> {
                               _actionButton(Icons.reply_rounded, AppStrings.actionReply, () => _compose(ComposeMode.reply, row, plainBody)),
                               _actionButton(Icons.reply_all_rounded, AppStrings.actionReplyAll, () => _compose(ComposeMode.replyAll, row, plainBody)),
                               _actionButton(Icons.forward_rounded, AppStrings.actionForward, () => _compose(ComposeMode.forward, row, plainBody)),
+                              if (hasTarget && !isSent)
+                                _actionButton(
+                                  Icons.unsubscribe_rounded,
+                                  _unsubscribing ? UnsubscribeStrings.inProgress : UnsubscribeStrings.buttonLabel,
+                                  _unsubscribing ? () {} : () => _manualUnsubscribe(id),
+                                ),
                             ],
                           ),
+                          if (isSent) ...[
+                            const SizedBox(height: 14),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check_circle_outline_rounded, size: 16, color: palette.accent.base),
+                                const SizedBox(width: 6),
+                                Text(
+                                  unsubscribedText,
+                                  style: AppType.ui(palette.textSecondary, size: 13, weight: FontWeight.w500),
+                                ),
+                              ],
+                            ),
+                          ] else if (hasFailed) ...[
+                            const SizedBox(height: 14),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.error_outline_rounded, size: 16, color: palette.error.base),
+                                const SizedBox(width: 6),
+                                Text(
+                                  UnsubscribeStrings.failed,
+                                  style: AppType.ui(palette.error.base, size: 13, weight: FontWeight.w500),
+                                ),
+                              ],
+                            ),
+                          ],
                           if (row['has_attachments'] == 1) ...[
                             const SizedBox(height: 20),
                             AttachmentStrip(key: ValueKey('att_$id'), messageId: id),
