@@ -230,4 +230,9 @@ abstract final class UiStrings {
       '$count new messages';
   static String notifyBundledBody(List<String> senders) =>
       senders.join(', ');
+
+  // Accounts
+  static const accountNoAccounts = 'No accounts configured.';
+  static const accountAdd = 'Add account';
+  static const accountAddAccount = 'Add Account';
 }

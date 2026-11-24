@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:df_settings/df_settings.dart';
 import 'package:df_theme/df_theme.dart';
 import '../../app/bootstrap.dart';
 import '../../app/log.dart';
@@ -29,56 +30,49 @@ class _AccountsTileState extends ConsumerState<AccountsTile> {
     final accountRepo = ref.watch(accountRepositoryProvider);
     final accounts = accountRepo.listAccounts();
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: palette.surface,
-        border: Border(bottom: BorderSide(color: palette.hairline)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                AppStrings.settingsAccounts,
-                style: TextStyle(
-                  fontFamily: 'Public Sans',
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                  color: palette.textPrimary,
-                ),
-              ),
-              TextButton.icon(
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('Add Account', style: TextStyle(fontSize: 12)),
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const AccountSetupView()),
-                  );
-                },
-              ),
-            ],
+    final List<Widget> tiles = [];
+
+    if (accounts.isEmpty) {
+      tiles.add(
+        DfSettingsTile(
+          title: Text(
+            UiStrings.accountNoAccounts,
+            style: TextStyle(
+              fontFamily: 'Public Sans',
+              fontSize: 12,
+              color: palette.textTertiary,
+            ),
           ),
-          if (accounts.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text(
-                'No accounts configured.',
-                style: TextStyle(
-                  fontFamily: 'Public Sans',
-                  fontSize: 12,
-                  color: palette.textTertiary,
-                ),
-              ),
-            )
-          else
-            for (final acc in accounts) ...[
-              _buildAccountTile(context, palette, accountRepo, acc),
-            ],
-        ],
+          enabled: false,
+        ),
+      );
+    } else {
+      for (final acc in accounts) {
+        tiles.add(_buildAccountTile(context, palette, accountRepo, acc));
+      }
+    }
+
+    tiles.add(
+      DfSettingsTile(
+        leading: const Icon(Icons.add),
+        title: const Text(UiStrings.accountAddAccount),
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const AccountSetupView()),
+          );
+        },
       ),
+    );
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < tiles.length; i++) ...[
+          tiles[i],
+          if (i < tiles.length - 1)
+            Divider(height: 1, thickness: 1, color: palette.hairline),
+        ],
+      ],
     );
   }
 
@@ -92,8 +86,7 @@ class _AccountsTileState extends ConsumerState<AccountsTile> {
     final needsReauth = isOAuth && accountRepo.isReauthRequired(acc.id);
     final isReconnecting = _reconnectingAccountIds.contains(acc.id);
 
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
+    return DfSettingsTile(
       leading: const Icon(Icons.account_circle_outlined),
       title: Text(
         acc.displayName,
