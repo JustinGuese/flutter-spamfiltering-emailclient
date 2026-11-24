@@ -44,7 +44,7 @@ Collective defense works without identifying anyone. Clients share MinHash finge
     <img src="screenshots/spamexmaple.png" alt="Evidence Sheet and Spam Verdict Breakdown" width="750">
   </p>
 
-- **Everyday Mail Client**: Multi-account IMAP/SMTP, Sent folder, Reply / Reply All / Forward with proper threading headers, attachments in both directions (attach files up to 18 MB; received files download from your mail server when you open them; forwards keep the original's files), and a full-screen reading view.
+- **Everyday Mail Client**: Multi-account IMAP/SMTP (password, or Google and Microsoft sign-in via OAuth2), local new-mail notifications (every message, bundled every 5 minutes, or hourly), Sent folder, Reply / Reply All / Forward with proper threading headers, attachments in both directions (attach files up to 18 MB; received files download from your mail server when you open them; forwards keep the original's files), and a full-screen reading view.
 
   <p align="center">
     <img src="screenshots/connect_account.png" alt="Connecting an Account via IMAP/SMTP" width="750">

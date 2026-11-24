@@ -48,7 +48,8 @@ class OAuthConfig {
 
   /// Determines the Google Client ID appropriate for the current platform.
   static String getGoogleClientId() {
-    if (Platform.isIOS) {
+    if (Platform.isIOS || Platform.isMacOS) {
+      // macOS shares the iOS client type: both use AppAuth with a custom URL scheme.
       return googleClientIdIos;
     } else if (Platform.isAndroid) {
       return googleClientIdAndroid;
@@ -59,7 +60,7 @@ class OAuthConfig {
 
   /// Determines the Google Client Secret (only needed on Desktop/loopback flow).
   static String? getGoogleClientSecret() {
-    if (Platform.isAndroid || Platform.isIOS) {
+    if (Platform.isAndroid || Platform.isIOS || Platform.isMacOS) {
       return null;
     }
     return googleClientSecretDesktop.isNotEmpty
@@ -71,7 +72,7 @@ class OAuthConfig {
   static String getGoogleRedirectUri({String? clientId}) {
     if (Platform.isAndroid) {
       return '$bundleId:/oauth2redirect';
-    } else if (Platform.isIOS) {
+    } else if (Platform.isIOS || Platform.isMacOS) {
       final id = clientId ?? getGoogleClientId();
       if (id.isNotEmpty && id.contains('.')) {
         // iOS Google OAuth redirect is the reversed client ID: e.g. com.googleusercontent.apps.XYZ:/oauth2redirect
@@ -81,7 +82,7 @@ class OAuthConfig {
       }
       return '$bundleId:/oauth2redirect';
     } else {
-      // Loopback on desktop (port 0 / dynamic loopback handled by loopback flow)
+      // Windows/Linux: loopback (port 0 / dynamic loopback handled by loopback flow)
       return 'http://127.0.0.1';
     }
   }
@@ -90,7 +91,7 @@ class OAuthConfig {
   static String getMicrosoftRedirectUri() {
     if (Platform.isAndroid) {
       return 'msauth://$bundleId/oauth2redirect';
-    } else if (Platform.isIOS) {
+    } else if (Platform.isIOS || Platform.isMacOS) {
       return 'msauth.$bundleId://auth';
     } else {
       return 'http://127.0.0.1';

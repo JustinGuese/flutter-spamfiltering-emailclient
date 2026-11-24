@@ -24,7 +24,7 @@ frontend/
 
 ### Core Components
 
-- **Client Application (`app/`)**: Built on Flutter (Dart `^3.12`), utilizing Riverpod for state management, SQLite (via the `sqlite3` package) for on-device persistence, and `enough_mail` for standard IMAP/SMTP transport. Credentials are encrypted in platform hardware keystores via `flutter_secure_storage`.
+- **Client Application (`app/`)**: Built on Flutter (Dart `^3.12`), utilizing Riverpod for state management, SQLite (via the `sqlite3` package) for on-device persistence, and `enough_mail` for standard IMAP/SMTP transport. Credentials are encrypted in platform hardware keystores via `flutter_secure_storage`. Gmail and Microsoft accounts connect with OAuth2 sign-in, and new mail raises local notifications (off, every message, bundled every 5 minutes, or hourly).
 - **Spam Core Engine (`packages/spam_core/`)**: Standalone, pure Dart package without Flutter UI dependencies. Implements a Robinson-Fisher chi-squared Bayesian classifier supporting three-way categorization (Inbox, Newsletter, Spam). Includes text normalization, tokenization with orthogonal sparse bigrams (OSB), 32-permutation MinHash locality-sensitive hashing (LSH), and URL sanitization/hashing.
 - **Offline Training Tooling (`tools/train_prior/`)**: Offline CLI tool to ingest raw EML email files, compute word and token probabilities across labels, and emit clean JSON prior models.
 - **Community Threat Protocol**: Anonymous, zero-ID community defense. Clients compute fuzzy cryptographic fingerprints locally and exchange blocklist updates with the backend without transmitting email bodies, subject lines, sender identities, or device identifiers.

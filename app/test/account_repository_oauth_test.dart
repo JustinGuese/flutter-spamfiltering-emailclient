@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:df_oauth/df_oauth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';

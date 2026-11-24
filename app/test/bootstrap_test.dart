@@ -7,7 +7,6 @@ import 'package:spamfiltering_emailclient/community/blocklist_sync.dart';
 import 'package:spamfiltering_emailclient/community/report_client.dart';
 import 'package:spamfiltering_emailclient/db/database.dart';
 import 'package:spamfiltering_emailclient/mail/account_repository.dart';
-import 'package:spamfiltering_emailclient/mail/mail_auth.dart';
 import 'package:spamfiltering_emailclient/mail/sync_engine.dart';
 import 'package:spamfiltering_emailclient/notifications/mail_notification_service.dart';
 import 'package:spamfiltering_emailclient/notifications/new_mail_notifier.dart';

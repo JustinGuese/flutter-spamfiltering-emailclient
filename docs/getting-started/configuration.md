@@ -8,12 +8,17 @@ This page documents the compile-time `--dart-define` parameters recognized by th
 
 ## Environment Variables (`String.fromEnvironment`)
 
-The client codebase defines two compile-time environment flags using `String.fromEnvironment`:
+The client codebase defines these compile-time environment flags using `String.fromEnvironment`:
 
 | Variable | File | Default Value | Purpose |
 |---|---|---|---|
 | `BACKEND_URL` | `app/lib/api/backend_config.dart` (used by `api_client.dart` and `report_client.dart`) | `https://emailprogram-spamfilter-backend-api.datafortress.cloud` (the hosted backend) | Base URL for community blocklist sync, threat reports, and ham dispute votes. |
 | `REVENUECAT_API_KEY` | `app/lib/platform/native_services.dart` | `""` (empty string) | Public SDK key for RevenueCat subscription and entitlement management. |
+| `GOOGLE_OAUTH_CLIENT_ID_IOS` | `app/lib/mail/oauth/oauth_config.dart` | `""` | Google OAuth client ID used on iOS **and macOS**. |
+| `GOOGLE_OAUTH_CLIENT_ID_ANDROID` | `app/lib/mail/oauth/oauth_config.dart` | `""` | Google OAuth client ID used on Android. |
+| `GOOGLE_OAUTH_CLIENT_ID_DESKTOP` | `app/lib/mail/oauth/oauth_config.dart` | `""` | Google OAuth client ID used on Windows and Linux. |
+| `GOOGLE_OAUTH_CLIENT_SECRET_DESKTOP` | `app/lib/mail/oauth/oauth_config.dart` | `""` | The (non-confidential) secret Google issues with a Desktop-type client; sent only on Windows and Linux. |
+| `MS_OAUTH_CLIENT_ID` | `app/lib/mail/oauth/oauth_config.dart` | `""` | Microsoft (Entra) application client ID, used on every platform. |
 
 ### 1. `BACKEND_URL`
 - **Location**: `app/lib/api/backend_config.dart`, defined once and read by both the authenticated client and the anonymous community client.
@@ -40,6 +45,30 @@ The client codebase defines two compile-time environment flags using `String.fro
   flutter run -d macos --dart-define=REVENUECAT_API_KEY=appl_your_revenuecat_key
   ```
 
+### 3. OAuth client IDs (Google and Microsoft sign-in)
+- **Location**: `app/lib/mail/oauth/oauth_config.dart`. The PKCE exchange, token refresh and the interactive flows come from the shared `df_oauth` package; this file only supplies the mail scopes, client IDs and redirect URIs.
+- **When unset**: The "Continue with Google" and "Continue with Microsoft" buttons in the account wizard stay visible. Tapping one for a provider whose client ID is empty shows "Google sign-in is not configured in this build" (or the Microsoft equivalent) instead of starting a flow. Password accounts are unaffected.
+- **Scopes requested**:
+  - Google: `https://mail.google.com/`, `openid`, `email`, `profile`.
+  - Microsoft (authority `common`, so personal and work/school accounts): `https://outlook.office.com/IMAP.AccessAsUser.All`, `https://outlook.office.com/SMTP.Send`, `offline_access`, `openid`, `email`, `profile`.
+- **Redirect URIs to register** (the application ID / bundle ID is `com.datafortress.spamfilteringemailclient`):
+
+  | Platform | Google | Microsoft |
+  |---|---|---|
+  | Android | `com.datafortress.spamfilteringemailclient:/oauth2redirect` | `msauth://com.datafortress.spamfilteringemailclient/oauth2redirect` |
+  | iOS and macOS | the reversed client ID, e.g. `com.googleusercontent.apps.<id>:/oauth2redirect` | `msauth.com.datafortress.spamfilteringemailclient://auth` |
+  | Windows and Linux | `http://127.0.0.1` (loopback, random port chosen at sign-in) | `http://127.0.0.1` (loopback, random port chosen at sign-in) |
+
+  On iOS and macOS the reversed-client-ID scheme must also be listed under `CFBundleURLSchemes` in `Info.plist`; see [Platform notes](../contributing/platform-notes.md#oauth-sign-in-and-notifications-per-platform).
+- **Provider-side requirements** (outside this repo): Google classifies `https://mail.google.com/` as a restricted scope, so a public release needs Google's app verification; until then the consent screen is limited to test users and refresh tokens are short-lived. Many Microsoft work or school tenants disable IMAP or SMTP AUTH, in which case only personal outlook.com, hotmail and live accounts connect.
+- **Customization**:
+  ```bash
+  flutter run -d linux \
+    --dart-define=GOOGLE_OAUTH_CLIENT_ID_DESKTOP=<id>.apps.googleusercontent.com \
+    --dart-define=GOOGLE_OAUTH_CLIENT_SECRET_DESKTOP=<desktop-client-secret> \
+    --dart-define=MS_OAUTH_CLIENT_ID=<application-client-id>
+  ```
+
 ---
 
 ## Operational Capabilities Matrix
@@ -48,7 +77,9 @@ The following table details what works out-of-the-box with zero keys and no back
 
 | Feature Area | Works Offline / No Backend | Requires Hosted Backend or API Keys |
 |---|---|---|
-| **Email Accounts (IMAP/SMTP)** | **Yes.** Full connection to any standard IMAP/SMTP provider (Gmail, Outlook, iCloud, Fastmail, self-hosted). | None. |
+| **Email Accounts (IMAP/SMTP)** | **Yes.** Full connection to any standard IMAP/SMTP provider (Gmail, Outlook, iCloud, Fastmail, self-hosted) with a password or app password. | None. |
+| **Google / Microsoft sign-in (OAuth2)** | **Yes, once client IDs are compiled in.** Talks only to Google and Microsoft, never to the DataFortress backend. | The OAuth client IDs above (a build without them shows "not configured" on tap). |
+| **New-mail notifications** | **Yes.** Local notifications raised on the device while the app is running. | None. |
 | **Email Viewing & Sync** | **Yes.** Periodic folder sync, UID tracking, body fetching, attachments, HTML sanitization, and remote image blocking. | None. |
 | **Email Composition** | **Yes.** Plain-text composing with Cc/Bcc, Reply / Reply All / Forward (quoted text, `In-Reply-To`/`References` threading headers), and SMTP transmission via `enough_mail`. Attachments in both directions: attach files while writing (up to 18 MB in total), and forwards carry the original's files. | None. |
 | **Local Bayesian Spam Filter** | **Yes.** Full Robinson-Fisher chi-squared classification based on `packages/spam_core`. | None. |

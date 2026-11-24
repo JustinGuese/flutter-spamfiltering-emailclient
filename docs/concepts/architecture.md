@@ -171,3 +171,23 @@ Mail synced before the table existed is filled in on first view (`SyncEngine.att
 **Sending.** The compose window attaches files with `file_picker` (all five platforms; the bytes are read only when the mail is sent). `buildOutgoingMessage` (`app/lib/mail/smtp_service.dart`) produces `multipart/alternative` as before when there are no files, and `multipart/mixed` (the text pair plus one base64 part per file) when there are. The total is capped at 18 MB (`maxOutgoingAttachmentBytes`), because base64 adds a third and the common 25 MB server limit counts the encoded size; a server with a lower limit answers with its own error, which the window shows. A forward starts with the original's attachments, downloaded as described above when the forward is sent. While a send runs the Send button is disabled, so a large upload cannot be sent twice.
 
 Open and save use `open_filex` and `file_picker`: the system's default app on iOS, Android, macOS, Windows and Linux (`xdg-open`), and a save dialog on all of them. Nothing about attachments goes to the DataFortress backend, and the spam filter does not read attachment content.
+
+---
+
+## Sign-In and Token Refresh
+
+Google and Microsoft accounts use OAuth2 instead of a stored password. The interactive part and the token exchange live in the shared `df_oauth` package (PKCE, a native AppAuth flow for iOS/Android/macOS, a loopback-server flow for Windows/Linux); the app adds the mail-specific pieces under `app/lib/mail/oauth/`: `oauth_config.dart` (scopes, client IDs, redirect URIs), `oauth_flow*.dart` (platform selection) and `oauth_service.dart` (maps `df_oauth` results and errors onto the app's types).
+
+`AccountRepository.getAuthForAccount` is the single place every caller (sync, search, verdict moves, compose) reads credentials from. For an OAuth account it returns the stored token, first refreshing it through `OAuthService` when it expires within two minutes or has no stored expiry, and persisting the new token (concurrent callers for one account share one refresh). A refresh the provider rejects with `invalid_grant` throws `ReauthRequiredException`; the sync error surfaces in the existing error snackbar and Settings → Accounts shows "Reconnect" for that account. IMAP and SMTP authenticate with XOAUTH2 (`ImapService`, `SmtpService`). Sync serialization is unchanged: the refresh happens before the one shared IMAP connection is used.
+
+## New-Mail Notifications
+
+`SyncEngine` reports new mail through an optional `onNewMail` callback, once per synced folder, with only the messages that qualify (new this run, unread, in the Inbox, not part of the folder's first fetch, labelled Inbox or ham with a spam score below 0.6). `syncEngineProvider` hands them to `NewMailNotifier` (`app/lib/notifications/new_mail_notifier.dart`), a plain-Dart buffer with an injectable clock and sink:
+
+| Mode (`notify_mode`) | Behavior |
+|---|---|
+| `off` | Drops everything. |
+| `instant` (default) | One notification per message; more than three in one flush collapse into one summary. The sync timer runs every 60 seconds in this mode. |
+| `every5min` / `hourly` | One bundled notification per interval, and none when nothing is pending. The sync timer stays at five minutes. |
+
+`AppBootstrap` owns the timers, flushes after each sync, on pause and on resume, and re-creates the timers when the mode changes. Notifications are delivered by `MailNotificationService`, a thin adapter over the shared `DfReminderService` from `df_notifications` (which gained desktop initialization and an immediate `show`); tapping one carries the payload `msg:<messageId>`, which `AppNavShell` turns into "open the Mail tab and select that message". Notifications are raised only while the app process is running; there is no background fetch on mobile.
