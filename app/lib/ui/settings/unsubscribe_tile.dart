@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:df_settings/df_settings.dart';
 import 'package:df_theme/df_theme.dart';
 import '../../app/unsubscribe_strings.dart';
 import '../../db/database.dart';
@@ -32,36 +33,15 @@ class UnsubscribeTile extends ConsumerWidget {
     final enabled = ref.watch(autoUnsubscribeProvider);
     final palette = context.df.colors;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: palette.surface,
-        border: Border(bottom: BorderSide(color: palette.hairline)),
-      ),
-      child: SwitchListTile(
-        title: Text(
-          UnsubscribeStrings.settingTitle,
-          style: TextStyle(
-            fontFamily: 'Public Sans',
-            fontWeight: FontWeight.w600,
-            fontSize: 14,
-            color: palette.textPrimary,
-          ),
-        ),
-        subtitle: Text(
-          UnsubscribeStrings.settingSubtitle,
-          style: TextStyle(
-            fontFamily: 'Public Sans',
-            fontSize: 12,
-            color: palette.textSecondary,
-          ),
-        ),
+    return DfSettingsTile(
+      title: const Text(UnsubscribeStrings.settingTitle),
+      subtitle: const Text(UnsubscribeStrings.settingSubtitle),
+      trailing: Switch(
         value: enabled,
         activeThumbColor: palette.brand.base,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        onChanged: (val) {
-          ref.read(autoUnsubscribeProvider.notifier).toggle(val);
-        },
+        onChanged: (val) => ref.read(autoUnsubscribeProvider.notifier).toggle(val),
       ),
+      onTap: () => ref.read(autoUnsubscribeProvider.notifier).toggle(!enabled),
     );
   }
 }

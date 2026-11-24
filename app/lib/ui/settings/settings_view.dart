@@ -11,7 +11,6 @@ import 'appearance_tile.dart';
 import 'notifications_tile.dart';
 import 'sharing_tile.dart';
 import 'unsubscribe_tile.dart';
-import 'unsubscribe_tile.dart';
 
 class SettingsView extends StatelessWidget {
   const SettingsView({super.key});
