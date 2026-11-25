@@ -9,6 +9,7 @@ import 'package:spamfiltering_emailclient/app/strings.dart';
 import 'package:spamfiltering_emailclient/app/ui_strings.dart';
 import 'package:spamfiltering_emailclient/theme/app_brand.dart';
 import 'package:spamfiltering_emailclient/ui/premium/premium_gate.dart';
+import 'package:spamfiltering_emailclient/ui/premium/app_checkout.dart';
 import 'package:spamfiltering_emailclient/ui/premium/app_upsell.dart';
 
 void main() {
@@ -108,7 +109,7 @@ void main() {
       expect(find.byType(DfUpsellSheet), findsOneWidget);
     });
 
-    testWidgets('subscribing in upsell sheet unlocks locally via DfPremiumGate', (tester) async {
+    Future<void> openUpsellAndTapUpgrade(WidgetTester tester) async {
       configureTesterSize(tester);
       await tester.pumpWidget(buildApp(
         child: const AppPremiumGate(
@@ -116,19 +117,45 @@ void main() {
         ),
         isPro: false,
       ));
-
       await tester.tap(find.byType(InkWell));
       await tester.pumpAndSettle();
-
       expect(find.byType(DfUpsellSheet), findsOneWidget);
-
-      // Tap upgrade
       await tester.tap(find.text(AppStrings.proUpgrade));
       await tester.pumpAndSettle();
+    }
 
-      // Now unlocked locally via DfPaywallResult.purchased
+    tearDown(() {
+      AppCheckout.debugPresenter = null;
+      AppCheckout.debugIsDesktop = null;
+    });
+
+    testWidgets('a real purchase result unlocks locally via DfPremiumGate', (tester) async {
+      String? seenPlacement;
+      AppCheckout.debugPresenter = (ctx, {placement}) async {
+        seenPlacement = placement;
+        return DfPaywallResult.purchased;
+      };
+      await openUpsellAndTapUpgrade(tester);
+
+      expect(seenPlacement, isNotNull);
       expect(find.byType(DfUpsellSheet), findsNothing);
       expect(find.text('Protected Pro Feature'), findsOneWidget);
+    });
+
+    testWidgets('upgrade never unlocks when the store flow is cancelled', (tester) async {
+      AppCheckout.debugPresenter = (ctx, {placement}) async => DfPaywallResult.cancelled;
+      await openUpsellAndTapUpgrade(tester);
+
+      expect(find.text('Protected Pro Feature'), findsNothing);
+      expect(find.byIcon(Icons.lock_rounded), findsOneWidget);
+    });
+
+    testWidgets('desktop has no checkout: no fake unlock, user is told why', (tester) async {
+      AppCheckout.debugIsDesktop = true;
+      await openUpsellAndTapUpgrade(tester);
+
+      expect(find.text('Protected Pro Feature'), findsNothing);
+      expect(find.text(UiStrings.checkoutDesktopUnavailable), findsOneWidget);
     });
   });
 

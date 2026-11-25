@@ -7,6 +7,7 @@ import 'funnel_config.dart';
 import '../app/strings.dart';
 import '../mail/account_repository.dart';
 import '../ui/account_setup/account_setup_view.dart';
+import '../ui/premium/app_checkout.dart';
 import '../ui/premium/app_upsell.dart';
 
 /// Funnel entry gate wrapping the main application with skippable onboarding
@@ -88,7 +89,12 @@ class AppLaunchGate extends StatelessWidget {
             child: AppUpsell.buildSheet(
               popOnCta: false,
               onDismiss: onComplete,
-              onCta: onComplete,
+              // Only a real purchase/restore completes the paywall step;
+              // anything else leaves the user on the sheet to retry or skip.
+              onCta: () async {
+                final result = await AppCheckout.present(ctx, placement: 'launch_gate');
+                if (result.isSuccess) onComplete();
+              },
             ),
           ),
         ),

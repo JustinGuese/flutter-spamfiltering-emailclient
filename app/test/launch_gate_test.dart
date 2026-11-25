@@ -4,6 +4,8 @@ import 'package:spamfiltering_emailclient/app/ui_strings.dart';
 import 'package:spamfiltering_emailclient/db/database.dart';
 import 'package:spamfiltering_emailclient/funnel/launch_gate.dart';
 import 'package:spamfiltering_emailclient/theme/app_brand.dart';
+import 'package:spamfiltering_emailclient/ui/premium/app_checkout.dart';
+import 'package:df_funnel/df_funnel.dart' show DfPaywallResult;
 import 'package:spamfiltering_emailclient/ui/account_setup/account_setup_view.dart';
 import 'package:spamfiltering_emailclient/ui/shell/nav_shell.dart';
 import 'package:df_theme/df_theme.dart';
@@ -142,5 +144,34 @@ void main() {
 
     expect(find.byType(AccountSetupView), findsNothing);
     expect(find.byType(AppNavShell), findsOneWidget);
+  });
+
+  group('paywall "Upgrade to Pro"', () {
+    tearDown(() => AppCheckout.debugPresenter = null);
+
+    testWidgets('a cancelled store flow keeps the user on the paywall', (tester) async {
+      AppCheckout.debugPresenter = (ctx, {placement}) async => DfPaywallResult.cancelled;
+      await pumpGate(tester, done, withAccount: true);
+
+      await tester.tap(find.text(AppStrings.proUpgrade));
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(const Duration(milliseconds: 600));
+      }
+
+      expect(find.text('Maybe later'), findsOneWidget);
+      expect(find.byType(AppNavShell), findsNothing);
+    });
+
+    testWidgets('a real purchase completes the paywall step', (tester) async {
+      AppCheckout.debugPresenter = (ctx, {placement}) async => DfPaywallResult.purchased;
+      await pumpGate(tester, done, withAccount: true);
+
+      await tester.tap(find.text(AppStrings.proUpgrade));
+      for (var i = 0; i < 3; i++) {
+        await tester.pump(const Duration(milliseconds: 600));
+      }
+
+      expect(find.byType(AppNavShell), findsOneWidget);
+    });
   });
 }

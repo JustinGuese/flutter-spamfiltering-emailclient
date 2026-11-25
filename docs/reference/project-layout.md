@@ -51,7 +51,7 @@ The client email application built with Flutter and Riverpod.
 | ├── `mailbox/` | Mailbox folder view and message list: `mailbox_view.dart`, `message_row.dart`. |
 | ├── `protection/` | "Your protection" full-screen view opened from the sidebar filter card: `protection_view.dart` (tabs, caught list, learned), `protection_story.dart` (the four-stage replay), `pro_panel.dart` (Pro stage and upgrade card). |
 | ├── `search/` | The Search tab: `search_view.dart` (search box, results list, server-search status, reader pane). |
-| ├── `premium/` | Pro upgrade, device pairing, and subscription UI (`app_upsell.dart`, `premium_gate.dart`, `sync_tile.dart`). |
+| ├── `premium/` | Pro upgrade, device pairing, and subscription UI (`app_upsell.dart`, `app_checkout.dart`, `premium_gate.dart`, `sync_tile.dart`). |
 | ├── `reader/` | Message reading pane (Reply / Reply All / Forward buttons, unsubscribe button and status display, full-screen view) with remote image blocker: `reader_view.dart`, `attachment_strip.dart` (the received files: open, save), `image_block_banner.dart`. |
 | ├── `settings/` | User preferences: `settings_view.dart`, `accounts_tile.dart`, `appearance_tile.dart`, `sharing_tile.dart`, `notifications_tile.dart`, `unsubscribe_tile.dart` (auto-unsubscribe toggle). |
 | └── `shell/` | Responsive window layouts: `three_pane_layout.dart`, `folders_sidebar.dart`, `nav_shell.dart`. |

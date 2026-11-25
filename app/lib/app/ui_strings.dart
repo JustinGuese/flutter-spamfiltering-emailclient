@@ -129,6 +129,11 @@ abstract final class UiStrings {
   static const notifyPrimingAccept = 'Turn on notifications';
   static const notifyPrimingDecline = 'Not now';
 
+  static const checkoutUnavailable =
+      'The upgrade screen could not be opened. This build may not include subscriptions.';
+  static const checkoutDesktopUnavailable =
+      "Subscriptions can't be started from the desktop app yet. Use the iOS, Android or macOS app.";
+
   static const upsellEyebrow = 'Pro';
   static const upsellHeadline = 'Your filter, on every device.';
   static const upsellSub =

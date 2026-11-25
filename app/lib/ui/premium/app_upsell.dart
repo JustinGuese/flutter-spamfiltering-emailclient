@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../app/strings.dart';
 import '../../app/ui_strings.dart';
+import 'app_checkout.dart';
 
 /// App-specific configuration and entry points for [DfUpsellSheet].
 ///
@@ -68,11 +69,11 @@ class AppUpsell {
     );
   }
 
-  /// Displays the honest upsell sheet modally. Returns [DfPaywallResult].
+  /// Displays the honest upsell sheet modally. Returns the real checkout
+  /// result ([AppCheckout]); dismissing returns [DfPaywallResult.cancelled].
   static Future<DfPaywallResult> show(
     BuildContext context, {
     String? placement,
-    VoidCallback? onSubscribed,
   }) {
     return DfUpsellSheet.show(
       context,
@@ -85,10 +86,7 @@ class AppUpsell {
       plan: plan,
       dismissStyle: DfUpsellDismissStyle.equalButton,
       showCloseButton: true,
-      onCta: () {
-        onSubscribed?.call();
-        return DfPaywallResult.purchased;
-      },
+      paywallPresenter: AppCheckout.present,
     );
   }
 
@@ -103,7 +101,6 @@ class AppUpsell {
     ),
     dynamic prefs,
     String? placement,
-    VoidCallback? onSubscribed,
   }) {
     return DfUpsellSheet.maybeShow(
       context,
@@ -118,10 +115,7 @@ class AppUpsell {
       plan: plan,
       dismissStyle: DfUpsellDismissStyle.equalButton,
       showCloseButton: true,
-      onCta: () {
-        onSubscribed?.call();
-        return DfPaywallResult.purchased;
-      },
+      paywallPresenter: AppCheckout.present,
     );
   }
 }
