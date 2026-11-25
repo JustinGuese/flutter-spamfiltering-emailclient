@@ -131,6 +131,29 @@ void main() {
       expect(launchedPlacement, equals('custom_placement'));
     });
 
+    testWidgets('a failed RevenueCat logIn never opens the paywall (no anonymous purchase)', (tester) async {
+      AppCheckout.debugIsFirebaseConfigured = true;
+      AppCheckout.debugIsDesktop = false;
+      AppCheckout.debugAuthGate = (ctx) async => 'user-123';
+      AppCheckout.debugRevenueCatLogIn = (uid) async => false; // logIn failed
+
+      var paywallShown = false;
+      AppCheckout.debugLauncher = (ctx, {placement}) async {
+        paywallShown = true;
+        return DfPaywallResult.purchased;
+      };
+
+      BuildContext? capturedContext;
+      await tester.pumpWidget(buildTestContext((ctx) => capturedContext = ctx));
+
+      final result = await AppCheckout.present(capturedContext!);
+      await tester.pump();
+
+      expect(paywallShown, isFalse);
+      expect(result, equals(DfPaywallResult.error));
+      expect(find.text(UiStrings.checkoutUnavailable), findsOneWidget);
+    });
+
     testWidgets('native paywall error shows snackbar and returns error', (tester) async {
       AppCheckout.debugIsFirebaseConfigured = true;
       AppCheckout.debugIsDesktop = false;

@@ -4,7 +4,6 @@ import 'package:df_billing/df_billing.dart';
 import 'package:df_funnel/df_funnel.dart';
 import 'package:df_revenuecat/df_revenuecat.dart'
     show DfPaywallLauncher, DfRevenueCat;
-import 'package:flutter/widgets.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../app/ui_strings.dart';
@@ -133,11 +132,17 @@ abstract final class AppCheckout {
       // NEVER report purchased from browser launch!
       return DfPaywallResult.notPresented;
     } else {
-      if (debugRevenueCatLogIn != null) {
-        await debugRevenueCatLogIn!(uid);
-      } else {
-        await DfRevenueCat.logIn(uid);
+      // The purchase must attach to the Firebase uid, never to an anonymous
+      // RevenueCat id, so a failed logIn means no paywall. (`DfRevenueCat.logIn`
+      // returns null on failure; the test seam signals failure with `false`.)
+      final loggedIn = debugRevenueCatLogIn != null
+          ? (await debugRevenueCatLogIn!(uid)) != false
+          : (await DfRevenueCat.logIn(uid)) != null;
+      if (!loggedIn) {
+        if (context.mounted) _tell(context, UiStrings.checkoutUnavailable);
+        return DfPaywallResult.error;
       }
+      if (!context.mounted) return DfPaywallResult.cancelled;
 
       final launcher = debugLauncher ?? DfPaywallLauncher.show;
       final result = await launcher(

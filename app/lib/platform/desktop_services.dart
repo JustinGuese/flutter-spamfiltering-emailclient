@@ -56,7 +56,6 @@ class DesktopPlatformServices implements AppPlatformServices {
           );
         };
       }),
-      dfEffectivePremiumProvider.overrideWith((ref) => ref.watch(dfIsPremiumProvider)),
     ],
   ];
 }

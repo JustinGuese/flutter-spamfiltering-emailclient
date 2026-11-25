@@ -7,7 +7,6 @@ import 'package:df_theme/df_theme.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
-import '../../app/strings.dart';
 import '../../app/ui_strings.dart';
 import '../../platform/platform_services.dart';
 
