@@ -9,7 +9,7 @@ import '../../app/ui_strings.dart';
 /// Starts a real subscription flow for "Upgrade to Pro".
 ///
 /// - iOS / Android / macOS: the RevenueCat paywall via [DfPaywallLauncher]
-///   (needs `REVENUECAT_API_KEY`; without it the launcher reports
+///   (needs the platform's RevenueCat key; without it the launcher reports
 ///   [DfPaywallResult.error]).
 /// - Windows / Linux: there is no in-app checkout yet (hosted Stripe checkout
 ///   needs payment links and a signed-in user id this client does not have).

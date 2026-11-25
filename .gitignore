@@ -20,3 +20,4 @@ site/
 
 # Real OAuth client IDs/secret: local only, never committed (see oauth.defines.example.json)
 app/oauth.defines.json
+app/billing.defines.json

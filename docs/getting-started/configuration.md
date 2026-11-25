@@ -13,7 +13,7 @@ The client codebase defines these compile-time environment flags using `String.f
 | Variable | File | Default Value | Purpose |
 |---|---|---|---|
 | `BACKEND_URL` | `app/lib/api/backend_config.dart` (used by `api_client.dart` and `report_client.dart`) | `https://emailprogram-spamfilter-backend-api.datafortress.cloud` (the hosted backend) | Base URL for community blocklist sync, threat reports, and ham dispute votes. |
-| `REVENUECAT_API_KEY` | `app/lib/platform/native_services.dart` | `""` (empty string) | Public SDK key for RevenueCat subscription and entitlement management. |
+| `REVENUECAT_API_KEY_IOS` / `REVENUECAT_API_KEY_ANDROID` | `app/lib/platform/native_services.dart` | `""` (empty string) | Public SDK keys (one per store app) for RevenueCat subscription and entitlement management. iOS and macOS share the iOS key. `REVENUECAT_API_KEY` is still read as a single fallback for both. |
 | `GOOGLE_OAUTH_CLIENT_ID_IOS` | `app/lib/mail/oauth/oauth_config.dart` | `""` | Google OAuth client ID used on iOS **and macOS**. |
 | `GOOGLE_OAUTH_CLIENT_ID_ANDROID` | `app/lib/mail/oauth/oauth_config.dart` | `""` | Google OAuth client ID used on Android. |
 | `GOOGLE_OAUTH_CLIENT_ID_DESKTOP` | `app/lib/mail/oauth/oauth_config.dart` | `""` | Google OAuth client ID used on Windows and Linux. |
@@ -33,8 +33,8 @@ The client codebase defines these compile-time environment flags using `String.f
   flutter run -d linux --dart-define=BACKEND_URL=http://localhost:8000   # e.g. a backend you run locally
   ```
 
-### 2. `REVENUECAT_API_KEY`
-- **Location**: `app/lib/platform/native_services.dart:16`
+### 2. `REVENUECAT_API_KEY_IOS` / `REVENUECAT_API_KEY_ANDROID`
+- **Location**: `app/lib/platform/native_services.dart`
 - **When unset**: Defaults to `""` (empty string).
 - **Behavior**:
   - When empty, `NativePlatformServices.initialize()` skips calling `DfRevenueCat.initialize()`.
@@ -42,7 +42,9 @@ The client codebase defines these compile-time environment flags using `String.f
   - Pro features that require cloud subscription validation are disabled, and the app remains entirely in the free, local tier.
 - **Customization**:
   ```bash
-  flutter run -d macos --dart-define=REVENUECAT_API_KEY=appl_your_revenuecat_key
+  flutter run -d macos --dart-define=REVENUECAT_API_KEY_IOS=appl_your_revenuecat_key
+  # or keep both keys in a gitignored file (copy app/billing.defines.example.json):
+  flutter run -d macos --dart-define-from-file=billing.defines.json
   ```
 
 ### 3. OAuth client IDs (Google and Microsoft sign-in)
@@ -92,7 +94,7 @@ The following table details what works out-of-the-box with zero keys and no back
 | **Anonymous Spam Reporting** | **No.** Local MinHash LSH and URL hashes are not broadcast without a reachable backend. | Requires `BACKEND_URL` serving `/v1/reports`. |
 | **Ham Dispute Votes** | **No.** False positive rescues cannot be broadcast without a reachable backend. | Requires `BACKEND_URL` serving `/v1/votes/ham`. |
 | **Pro Encrypted Filter Sync** | **No.** Synchronizing trained tokens across devices requires Firebase Auth JWT and backend sync endpoint. | Requires `BACKEND_URL` and Firebase Auth. |
-| **Pro Subscriptions** | **No.** In-app purchases and receipt validation require RevenueCat. | Requires `REVENUECAT_API_KEY`. |
+| **Pro Subscriptions** | **No.** In-app purchases and receipt validation require RevenueCat. | Requires `REVENUECAT_API_KEY_IOS` / `_ANDROID`. |
 
 ---
 

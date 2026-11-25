@@ -38,7 +38,7 @@ dart run flutter_launcher_icons
 dart run flutter_native_splash:create
 ```
 
-Backend URL is a compile-time define: `--dart-define=BACKEND_URL=...` (default: the hosted backend, `https://emailprogram-spamfilter-backend-api.datafortress.cloud`; defined once in `app/lib/api/backend_config.dart`); native builds also read `REVENUECAT_API_KEY`. Without a backend the mail client and local filter still work; community sync and Pro do not.
+Backend URL is a compile-time define: `--dart-define=BACKEND_URL=...` (default: the hosted backend, `https://emailprogram-spamfilter-backend-api.datafortress.cloud`; defined once in `app/lib/api/backend_config.dart`); native builds also read `REVENUECAT_API_KEY_IOS` / `REVENUECAT_API_KEY_ANDROID` (one public key per store app; `REVENUECAT_API_KEY` is the legacy single fallback; keep them in the gitignored `app/billing.defines.json`). Without a backend the mail client and local filter still work; community sync and Pro do not.
 
 OAuth sign-in client IDs are compile-time defines too (`GOOGLE_OAUTH_CLIENT_ID_IOS` (also macOS) / `_ANDROID` / `_DESKTOP`, `GOOGLE_OAUTH_CLIENT_SECRET_DESKTOP`, `MS_OAUTH_CLIENT_ID`; read in `app/lib/mail/oauth/oauth_config.dart`). Without them the sign-in buttons show "not configured in this build" and password accounts work as before.
 

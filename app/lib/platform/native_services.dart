@@ -11,18 +11,25 @@ class NativePlatformServices implements AppPlatformServices {
   @override
   String get platformName => Platform.operatingSystem;
 
+  // RevenueCat issues one public SDK key per store app, so iOS/macOS and
+  // Android each get their own. REVENUECAT_API_KEY is the legacy single key.
+  static const _legacyKey = String.fromEnvironment('REVENUECAT_API_KEY', defaultValue: '');
+  static const _iosKey = String.fromEnvironment('REVENUECAT_API_KEY_IOS', defaultValue: '');
+  static const _androidKey = String.fromEnvironment('REVENUECAT_API_KEY_ANDROID', defaultValue: '');
+
   @override
   Future<void> initialize() async {
-    const apiKey = String.fromEnvironment('REVENUECAT_API_KEY', defaultValue: '');
-    if (apiKey.isNotEmpty) {
-      await DfRevenueCat.initialize(
-        config: const DfRevenueCatConfig(
-          iosApiKey: apiKey,
-          androidApiKey: apiKey,
-          entitlementId: 'pro',
-        ),
-      );
-    }
+    final ios = _iosKey.isNotEmpty ? _iosKey : _legacyKey;
+    final android = _androidKey.isNotEmpty ? _androidKey : _legacyKey;
+    final active = Platform.isAndroid ? android : ios;
+    if (active.isEmpty) return;
+    await DfRevenueCat.initialize(
+      config: DfRevenueCatConfig(
+        iosApiKey: ios,
+        androidApiKey: android,
+        entitlementId: 'pro',
+      ),
+    );
   }
 
   /// Provider overrides specific to native platforms.

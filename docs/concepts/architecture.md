@@ -84,7 +84,7 @@ classDiagram
 ### Native Platforms (iOS, Android, macOS)
 Implemented in `NativePlatformServices` (`app/lib/platform/native_services.dart`):
 - Uses native Firebase Auth bindings (`df_firebase_auth`).
-- Uses native RevenueCat SDK (`df_revenuecat`) configured with `REVENUECAT_API_KEY` for in-app purchase receipts and entitlement tracking.
+- Uses native RevenueCat SDK (`df_revenuecat`) configured with `REVENUECAT_API_KEY_IOS` / `REVENUECAT_API_KEY_ANDROID` for in-app purchase receipts and entitlement tracking.
 - Identifies as `isDesktop = false`.
 
 ### Desktop Platforms (Linux, Windows)

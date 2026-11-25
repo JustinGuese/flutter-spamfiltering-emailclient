@@ -36,11 +36,11 @@ graph TD
 
 ### Platform Implementations
 - **Native Platforms (`NativePlatformServices` in `app/lib/platform/native_services.dart`)**:
-  Configured with `REVENUECAT_API_KEY`. Listens to `dfRevenueCatIsProProvider` to check the `pro` entitlement.
+  Configured with `REVENUECAT_API_KEY_IOS` / `REVENUECAT_API_KEY_ANDROID` (iOS and macOS share the iOS key; the old single `REVENUECAT_API_KEY` still works as a fallback). Listens to `dfRevenueCatIsProProvider` to check the `pro` entitlement.
 - **Desktop Platforms (`DesktopPlatformServices` in `app/lib/platform/desktop_services.dart`)**:
   Linux and Windows builds bypass mobile store SDKs. `DesktopPlatformServices` provides provider overrides that map `dfEffectivePremiumProvider` to `dfIsPremiumProvider`, querying the web billing checkout status.
 - **"Upgrade to Pro" (`AppCheckout` in `app/lib/ui/premium/app_checkout.dart`)**:
-  The upsell sheet (shared `DfUpsellSheet`, configured in `app_upsell.dart`) closes first, then `AppCheckout.present` runs. On iOS, Android and macOS that opens the RevenueCat paywall through `DfPaywallLauncher` (needs `REVENUECAT_API_KEY`); a build without the key shows a short "could not be opened" message. Windows and Linux have no in-app checkout yet and show a message saying so. Only a `purchased` or `restored` result unlocks anything, and the launch-gate paywall step completes only on those two results.
+  The upsell sheet (shared `DfUpsellSheet`, configured in `app_upsell.dart`) closes first, then `AppCheckout.present` runs. On iOS, Android and macOS that opens the RevenueCat paywall through `DfPaywallLauncher` (needs the RevenueCat key for the platform); a build without the key shows a short "could not be opened" message. Windows and Linux have no in-app checkout yet and show a message saying so. Only a `purchased` or `restored` result unlocks anything, and the launch-gate paywall step completes only on those two results.
 - **Application State**:
   Controllers (such as `VerdictController`) and UI widgets observe `ref.watch(dfEffectivePremiumProvider)` to determine whether Pro capabilities should activate.
 
