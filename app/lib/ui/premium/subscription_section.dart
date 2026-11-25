@@ -5,12 +5,12 @@ import 'package:df_settings/df_settings.dart';
 import 'package:df_theme/df_theme.dart';
 import '../../app/strings.dart';
 import '../../app/ui_strings.dart';
-import 'upsell_sheet.dart';
+import 'app_upsell.dart';
 
 // DfSubscriptionSettingsSection from df_funnel is designed for standard App Store /
 // Google Play subscriptions management and RevenueCat Customer Center portals,
 // but does not support our desktop/mobile entitlement model, Pro feature explanation,
-// active status badge, and custom AppUpsellSheet flow. Keeping our custom section
+// active status badge, and custom AppUpsell flow. Keeping our custom section
 // built with DfSettingsTile.
 class AppSubscriptionSection extends ConsumerWidget {
   const AppSubscriptionSection({super.key});
@@ -52,7 +52,7 @@ class AppSubscriptionSection extends ConsumerWidget {
             )
           else
             TextButton(
-              onPressed: () => AppUpsellSheet.show(context),
+              onPressed: () => AppUpsell.show(context),
               child: const Text(AppStrings.proUpgrade, style: TextStyle(fontSize: 12)),
             ),
         ],

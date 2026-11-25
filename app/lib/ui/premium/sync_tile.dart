@@ -7,7 +7,7 @@ import 'package:df_theme/df_theme.dart';
 import '../../app/strings.dart';
 import '../../db/database.dart';
 import '../../premium/sync_key.dart';
-import 'upsell_sheet.dart';
+import 'app_upsell.dart';
 
 class PremiumSyncNotifier extends Notifier<bool> {
   @override
@@ -45,7 +45,7 @@ class PremiumSyncTile extends ConsumerWidget {
         ),
         subtitle: const Text(AppStrings.settingsFilterSyncSub),
         trailing: OutlinedButton(
-          onPressed: () => AppUpsellSheet.show(context),
+          onPressed: () => AppUpsell.show(context),
           child: const Text(AppStrings.proUpgrade, style: TextStyle(fontSize: 12)),
         ),
       );

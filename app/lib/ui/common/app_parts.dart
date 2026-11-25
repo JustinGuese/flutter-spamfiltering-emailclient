@@ -4,44 +4,6 @@ import 'package:spam_core/spam_core.dart';
 
 import '../../app/ui_strings.dart';
 import '../../theme/app_type.dart';
-import 'formats.dart';
-
-/// Round avatar with initials. Tint is derived from a seed so a sender is always the
-/// same colour, drawn only from palette roles (no hardcoded hues).
-class Monogram extends StatelessWidget {
-  final String name;
-  final String seed;
-  final double size;
-
-  const Monogram({super.key, required this.name, required this.seed, this.size = 40});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.df.colors;
-    final tints = <(Color, Color)>[
-      (c.brand.container, c.brand.onContainer),
-      (c.accent.container, c.accent.onContainer),
-      (c.warning.bg, c.warning.deep),
-      (c.success.bg, c.success.deep),
-      (c.surfaceSunken, c.textSecondary),
-    ];
-    final (bg, fg) = tints[seed.hashCode.abs() % tints.length];
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: bg,
-        border: Border.all(color: fg.withValues(alpha: 0.12)),
-      ),
-      child: Text(
-        initialsOf(name),
-        style: AppType.display(fg, size: size * 0.4, weight: 600, letterSpacing: 0, height: 1),
-      ),
-    );
-  }
-}
 
 /// Classification pill. Never colour alone: icon + word.
 /// Plain inbox mail gets no pill at all (silence is the default).

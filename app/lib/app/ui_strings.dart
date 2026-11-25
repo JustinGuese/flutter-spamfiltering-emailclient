@@ -123,6 +123,11 @@ abstract final class UiStrings {
   static const notifyTestTitle = 'Test notification';
   static const notifyTestBody =
       'This is a test notification from DataFortress Mail.';
+  static const notifyPrimingTitle = 'Know when mail arrives';
+  static const notifyPrimingBody =
+      'Get a notification for new mail in your inbox. It shows the sender and subject only, never the message text. Mail the filter flags as spam stays quiet. You can change this anytime in Settings.';
+  static const notifyPrimingAccept = 'Turn on notifications';
+  static const notifyPrimingDecline = 'Not now';
 
   static const upsellEyebrow = 'Pro';
   static const upsellHeadline = 'Your filter, on every device.';

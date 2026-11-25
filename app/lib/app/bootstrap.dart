@@ -8,6 +8,7 @@ import '../community/blocklist_sync.dart';
 import 'log.dart';
 import '../mail/account_repository.dart';
 import '../mail/sync_engine.dart';
+import '../notifications/mail_notification_permission.dart';
 import '../notifications/new_mail_notifier.dart';
 import '../notifications/notify_prefs.dart';
 import '../notifications/notify_types.dart';
@@ -162,7 +163,7 @@ class AppBootstrapState extends ConsumerState<AppBootstrap>
 
       if (!mounted) return;
       final requester =
-          widget.ensurePermission ?? ensureDfNotificationPermission;
+          widget.ensurePermission ?? ensureMailNotificationPermission;
       final granted = await requester(context, ref);
       if (mounted) {
         ref.read(notificationBlockedProvider.notifier).setBlocked(!granted);

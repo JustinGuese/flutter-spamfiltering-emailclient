@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:df_theme/df_theme.dart';
+import 'package:df_ui_widgets/df_ui_widgets.dart';
 import 'package:spam_core/spam_core.dart';
 import '../../db/database.dart';
 import '../../mail/account_repository.dart';
@@ -252,7 +253,7 @@ class _ReaderViewState extends ConsumerState<ReaderView> {
                           Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Monogram(name: who.name, seed: who.email, size: 46),
+                              DfAvatar(name: who.name, seed: who.email, size: 46),
                               const SizedBox(width: 14),
                               Expanded(
                                 child: Column(

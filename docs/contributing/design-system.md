@@ -117,7 +117,7 @@ if (AppTheme.isThreePane(MediaQuery.of(context).size.width)) {
 
 User-configurable density toggles in mailbox list views (`AppTheme`):
 
-- **Comfortable**: `72.0dp` row height with sender monogram, subject preview, date, and verdict pill.
+- **Comfortable**: `72.0dp` row height with sender avatar (`DfAvatar`), subject preview, date, and verdict pill.
 - **Compact**: `52.0dp` row height with single-line summary for high-throughput triage.
 
 ---

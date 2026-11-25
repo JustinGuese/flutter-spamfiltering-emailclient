@@ -7,7 +7,7 @@ import 'package:spamfiltering_emailclient/db/database.dart';
 import 'package:spamfiltering_emailclient/mail/account_repository.dart';
 import 'package:spamfiltering_emailclient/mail/list_unsubscribe.dart';
 import 'package:spamfiltering_emailclient/mail/mail_auth.dart';
-import 'package:spamfiltering_emailclient/mail/unsubscribe_guard.dart';
+import 'package:df_safe_url/df_safe_url.dart';
 import 'package:spamfiltering_emailclient/mail/unsubscribe_service.dart';
 
 class _FakeStorage implements FlutterSecureStorage {
@@ -85,7 +85,7 @@ void main() {
   late MockMailSender mockMailSender;
   late MockHttpAdapter mockHttpAdapter;
   late Dio dio;
-  late UnsubscribeGuard publicGuard;
+  late DfSafeUrlGuard publicGuard;
   DateTime fakeNow = DateTime.utc(2026, 11, 24, 12, 0, 0);
 
   setUp(() async {
@@ -102,7 +102,7 @@ void main() {
     ));
     dio.httpClientAdapter = mockHttpAdapter;
 
-    publicGuard = UnsubscribeGuard(
+    publicGuard = DfSafeUrlGuard(
       dnsLookup: (host) async => [InternetAddress('93.184.216.34')],
     );
 
@@ -151,7 +151,7 @@ void main() {
   }
 
   UnsubscribeServiceImpl createService({
-    UnsubscribeGuard? guard,
+    DfSafeUrlGuard? guard,
     DateTime Function()? clock,
   }) {
     return UnsubscribeServiceImpl(
@@ -458,7 +458,7 @@ void main() {
 
   group('UnsubscribeService - SSRF Unsafe URL', () {
     test('skips unsafe URL if guard fails', () async {
-      final privateGuard = UnsubscribeGuard(
+      final privateGuard = DfSafeUrlGuard(
         dnsLookup: (host) async => [InternetAddress('127.0.0.1')],
       );
       insertMessage(

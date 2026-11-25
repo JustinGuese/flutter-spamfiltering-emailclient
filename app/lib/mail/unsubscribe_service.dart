@@ -5,7 +5,7 @@ import '../db/database.dart';
 import 'account_repository.dart';
 import 'list_unsubscribe.dart';
 import 'smtp_service.dart';
-import 'unsubscribe_guard.dart';
+import 'package:df_safe_url/df_safe_url.dart';
 
 /// The trigger that initiated an unsubscribe action.
 enum UnsubscribeTrigger {
@@ -96,7 +96,7 @@ class SmtpUnsubscribeMailSender implements UnsubscribeMailSender {
 class UnsubscribeServiceImpl implements UnsubscribeService {
   final AppDatabase db;
   final AccountRepository accountRepo;
-  final UnsubscribeGuard guard;
+  final DfSafeUrlGuard guard;
   final Dio dio;
   final UnsubscribeMailSender mailSender;
   final DateTime Function() clock;
@@ -104,11 +104,11 @@ class UnsubscribeServiceImpl implements UnsubscribeService {
   UnsubscribeServiceImpl({
     required this.db,
     required this.accountRepo,
-    UnsubscribeGuard? guard,
+    DfSafeUrlGuard? guard,
     Dio? dio,
     UnsubscribeMailSender? mailSender,
     DateTime Function()? clock,
-  })  : guard = guard ?? const UnsubscribeGuard(),
+  })  : guard = guard ?? const DfSafeUrlGuard(),
         dio = dio ?? _createDefaultDio(),
         mailSender = mailSender ??
             SmtpUnsubscribeMailSender(accountRepo: accountRepo),

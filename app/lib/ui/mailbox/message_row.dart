@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 import 'package:df_theme/df_theme.dart';
+import 'package:df_ui_widgets/df_ui_widgets.dart';
 import 'package:spam_core/spam_core.dart';
 import '../../theme/app_type.dart';
 import '../common/app_parts.dart';
@@ -74,7 +75,7 @@ class _MessageRowState extends State<MessageRow> {
     final avatar = Stack(
       clipBehavior: Clip.none,
       children: [
-        Monogram(name: who.name, seed: who.email, size: comfortable ? 42 : 32),
+        DfAvatar(name: who.name, seed: who.email, size: comfortable ? 42 : 32),
         if (unread)
           Positioned(
             right: -2,

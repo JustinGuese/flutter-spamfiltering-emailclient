@@ -33,9 +33,3 @@ String formatFullDate(DateTime when) {
   return (name: email.contains('@') ? email.split('@').first : email, email: email);
 }
 
-String initialsOf(String name) {
-  final parts = name.split(RegExp(r'[\s._-]+')).where((p) => p.isNotEmpty).toList();
-  if (parts.isEmpty) return '?';
-  if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-  return (parts.first.substring(0, 1) + parts[1].substring(0, 1)).toUpperCase();
-}
