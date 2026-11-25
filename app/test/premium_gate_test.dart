@@ -127,6 +127,10 @@ void main() {
     tearDown(() {
       AppCheckout.debugPresenter = null;
       AppCheckout.debugIsDesktop = null;
+      AppCheckout.debugIsFirebaseConfigured = null;
+      AppCheckout.debugAuthGate = null;
+      AppCheckout.debugLauncher = null;
+      AppCheckout.debugWebLinkOpener = null;
     });
 
     testWidgets('a real purchase result unlocks locally via DfPremiumGate', (tester) async {
@@ -150,12 +154,13 @@ void main() {
       expect(find.byIcon(Icons.lock_rounded), findsOneWidget);
     });
 
-    testWidgets('desktop has no checkout: no fake unlock, user is told why', (tester) async {
+    testWidgets('desktop checkout: no fake unlock, informs user or handles web link', (tester) async {
       AppCheckout.debugIsDesktop = true;
+      // In default test environment without Firebase configured, tells user checkout unavailable
       await openUpsellAndTapUpgrade(tester);
 
       expect(find.text('Protected Pro Feature'), findsNothing);
-      expect(find.text(UiStrings.checkoutDesktopUnavailable), findsOneWidget);
+      expect(find.text(UiStrings.checkoutUnavailable), findsOneWidget);
     });
   });
 

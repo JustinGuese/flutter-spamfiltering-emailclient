@@ -195,6 +195,12 @@ class AppDatabase {
     if (!messageCols.contains('sender_auth_pass')) {
       db.execute('ALTER TABLE messages ADD COLUMN sender_auth_pass INTEGER NOT NULL DEFAULT 0');
     }
+    // The mail list pages by `ORDER BY date DESC LIMIT n` within a folder.
+    // Guarded because very old caches may lack the columns; they are rebuilt
+    // from the server anyway.
+    if (messageCols.contains('folder_id') && messageCols.contains('date')) {
+      db.execute('CREATE INDEX IF NOT EXISTS messages_folder_date ON messages (folder_id, date DESC)');
+    }
 
     db.execute('''
       CREATE TABLE IF NOT EXISTS unsubscribe_log (

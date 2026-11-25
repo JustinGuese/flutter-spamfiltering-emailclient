@@ -76,6 +76,15 @@ class _FakeImap extends ImapService {
 
   List<MimeMessage> newerMessages = const [];
 
+  int? olderBefore;
+  List<MimeMessage> olderMessages = const [];
+
+  @override
+  Future<List<MimeMessage>> fetchOlderThan(int beforeUid, {int count = 50}) async {
+    olderBefore = beforeUid;
+    return olderMessages;
+  }
+
   @override
   Future<List<MimeMessage>> fetchNewerThan(int lastUid) async {
     newerThan = lastUid;
@@ -101,6 +110,21 @@ class _FakeImap extends ImapService {
 
   @override
   Future<void> disconnect() async => disconnected = true;
+}
+
+class _SearchImap extends ImapService {
+  final List<int> all;
+  String? criteria;
+  _SearchImap(this.all);
+
+  @override
+  Future<List<int>> searchUids(String c) async {
+    criteria = c;
+    return all.where((u) => u < 8).toList();
+  }
+
+  @override
+  Future<List<MimeMessage>> fetchByUids(List<int> uids) async => [for (final u in uids) _msg(u, u)];
 }
 
 class _FakeFilterService extends FilterService {
@@ -196,6 +220,83 @@ void main() {
 
     expect(imap.recentCalls, 1);
     expect(imap.newerThan, 9002);
+  });
+
+  group('older mail', () {
+    Future<List<int>> uidsIn(String folder) async => [
+          for (final r in db.db.select('SELECT uid FROM messages WHERE folder_id = ? ORDER BY uid', [folder])) r['uid'] as int,
+        ];
+
+    test('loadOlder stores the page below the lowest stored UID, scored, without notifying', () async {
+      final imap = _FakeImap([_msg(9001, 1), _msg(9002, 2)]);
+      var notified = 0;
+      var scored = 0;
+      final engine = SyncEngine(
+        db: db,
+        accountRepo: repo,
+        imap: imap,
+        filterService: _FakeFilterService(db, onClassify: (_, _) {
+          scored++;
+          return const sc.Verdict(label: sc.Label.inbox, spamScore: 0.1);
+        }),
+        onNewMail: (_) => notified++,
+      );
+      await engine.syncAccount('a1');
+      scored = 0;
+
+      imap.olderMessages = [_msg(8001, 1), _msg(8002, 2)];
+      final n = await engine.loadOlder('a1_INBOX');
+
+      expect(n, 2);
+      expect(imap.olderBefore, 9001, reason: 'asks below the lowest stored UID');
+      expect(imap.selected.last, 'INBOX');
+      expect(imap.disconnected, isTrue);
+      expect(await uidsIn('a1_INBOX'), [8001, 8002, 9001, 9002]);
+      expect(scored, 2, reason: 'older mail is classified like synced mail');
+      expect(notified, 0, reason: 'old mail is not new mail');
+    });
+
+    test('later syncs still ask only above the highest UID after older mail arrives', () async {
+      final imap = _FakeImap([_msg(9001, 1), _msg(9002, 2)]);
+      final engine = SyncEngine(db: db, accountRepo: repo, imap: imap);
+      await engine.syncAccount('a1');
+      imap.olderMessages = [_msg(8001, 1)];
+      await engine.loadOlder('a1_INBOX');
+      await engine.syncAccount('a1');
+      expect(imap.newerThan, 9002);
+    });
+
+    test('loadOlder returns 0 at the start of the mailbox and for folders sync does not keep', () async {
+      final imap = _FakeImap([_msg(1, 1)]);
+      final engine = SyncEngine(db: db, accountRepo: repo, imap: imap);
+      await engine.syncAccount('a1');
+      final connects = imap.connects;
+
+      expect(await engine.loadOlder('a1_INBOX'), 0, reason: 'UID 1 is the first message');
+      expect(await engine.loadOlder('nope'), 0);
+      db.db.execute("INSERT INTO folders (id, account_id, name, server_path, special_use, unread_count) VALUES ('a1_Junk', 'a1', 'Junk', 'Junk', 'junk', 0)");
+      expect(await engine.loadOlder('a1_Junk'), 0);
+      expect(imap.connects, connects, reason: 'none of these needs the server');
+    });
+
+    test('a second request for the same folder joins the first', () async {
+      final imap = _FakeImap([_msg(9001, 1)]);
+      final engine = SyncEngine(db: db, accountRepo: repo, imap: imap);
+      await engine.syncAccount('a1');
+      final connects = imap.connects;
+      imap.olderMessages = [_msg(8001, 1)];
+      final results = await Future.wait([engine.loadOlder('a1_INBOX'), engine.loadOlder('a1_INBOX')]);
+      expect(results, [1, 1]);
+      expect(imap.connects, connects + 1);
+    });
+
+    test('ImapService.fetchOlderThan returns the newest page below the UID, newest first', () async {
+      final svc = _SearchImap([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+      final got = await svc.fetchOlderThan(8, count: 3);
+      expect(svc.criteria, 'UID 1:7');
+      expect(got.map((m) => m.uid), [7, 6, 5]);
+      expect(await svc.fetchOlderThan(1), isEmpty);
+    });
   });
 
   test('rows cached by the old sequence-number sync are dropped once', () async {

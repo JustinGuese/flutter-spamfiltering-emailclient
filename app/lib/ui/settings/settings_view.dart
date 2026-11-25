@@ -7,6 +7,7 @@ import '../../theme/app_type.dart';
 import '../premium/subscription_section.dart';
 import '../premium/sync_tile.dart';
 import 'accounts_tile.dart';
+import 'account_tile.dart';
 import 'appearance_tile.dart';
 import 'notifications_tile.dart';
 import 'sharing_tile.dart';
@@ -35,7 +36,7 @@ class SettingsView extends StatelessWidget {
             children: const [
               DfSettingsGroup(
                 title: UiStrings.settingsAccounts,
-                children: [AccountsTile()],
+                children: [AccountTile(), AccountsTile()],
               ),
               DfSettingsGroup(
                 title: UiStrings.settingsNotifications,

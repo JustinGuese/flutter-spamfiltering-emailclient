@@ -38,7 +38,10 @@ dart run flutter_launcher_icons
 dart run flutter_native_splash:create
 ```
 
-Backend URL is a compile-time define: `--dart-define=BACKEND_URL=...` (default: the hosted backend, `https://emailprogram-spamfilter-backend-api.datafortress.cloud`; defined once in `app/lib/api/backend_config.dart`); native builds also read `REVENUECAT_API_KEY_IOS` / `REVENUECAT_API_KEY_ANDROID` (one public key per store app; `REVENUECAT_API_KEY` is the legacy single fallback; keep them in the gitignored `app/billing.defines.json`). Without a backend the mail client and local filter still work; community sync and Pro do not.
+Backend URL is a compile-time define: `--dart-define=BACKEND_URL=...` (default: the hosted backend, `https://emailprogram-spamfilter-backend-api.datafortress.cloud`; defined once in `app/lib/api/backend_config.dart`). Pro authentication and billing use compile-time defines passed via `--dart-define-from-file=billing.defines.json` (copy `app/billing.defines.example.json`; gitignored):
+- Native IAP & Firebase (iOS/Android/macOS): `REVENUECAT_API_KEY_IOS`, `REVENUECAT_API_KEY_ANDROID` (public store keys; `REVENUECAT_API_KEY` is fallback), `FIREBASE_API_KEY`, `FIREBASE_APP_ID_ANDROID`, `FIREBASE_APP_ID_IOS`, `FIREBASE_PROJECT_ID`, `FIREBASE_MESSAGING_SENDER_ID`, `FIREBASE_AUTH_DOMAIN`.
+- Desktop REST auth & Web Billing (Windows/Linux): `FIREBASE_WEB_API_KEY`, `RC_WEB_PURCHASE_LINK`, `RC_WEB_PUBLIC_API_KEY`.
+Without a backend the mail client and local filter still work; community sync and Pro do not. Without Firebase/billing defines the app stays login-free, and Upgrade to Pro shows "checkout unavailable".
 
 OAuth sign-in client IDs are compile-time defines too (`GOOGLE_OAUTH_CLIENT_ID_IOS` (also macOS) / `_ANDROID` / `_DESKTOP`, `GOOGLE_OAUTH_CLIENT_SECRET_DESKTOP`, `MS_OAUTH_CLIENT_ID`; read in `app/lib/mail/oauth/oauth_config.dart`). Without them the sign-in buttons show "not configured in this build" and password accounts work as before.
 
@@ -68,7 +71,12 @@ OAuth sign-in client IDs are compile-time defines too (`GOOGLE_OAUTH_CLIENT_ID_I
 
 **Sync serialization.** All account syncs share one IMAP connection; `SyncEngine.syncAccount` queues them and joins duplicate requests per account. Keep that invariant when adding IMAP work. Only the Inbox, unlabeled folders and Sent are synced; Sent (`classify: false`) is never scored, moved to Junk or used for training, and virtual folders (Gmail All Mail etc.) are skipped. Folder listing must stay recursive or nested Sent/Trash folders disappear.
 
-**Platform split.** `AppPlatformServices` (`platform/platform_services.dart`) has two implementations chosen at startup: `native_services.dart` (iOS/Android/macOS: native Firebase Auth + RevenueCat) and `desktop_services.dart` (Windows/Linux: REST Firebase auth, hosted-checkout billing, no-op error sinks). `main.dart` injects the database and services via `ProviderScope` overrides; tests do the same.
+**Platform split & Pro-auth architecture.** `AppPlatformServices` (`platform/platform_services.dart`) has two implementations chosen at startup: `native_services.dart` (iOS/Android/macOS: native Firebase Auth + RevenueCat SDK) and `desktop_services.dart` (Windows/Linux: REST Firebase Auth via `df_firebase_rest`, RevenueCat Web Purchase Link + REST entitlement fetch via `df_revenuecat`). `main.dart` injects the database and services via `ProviderScope` overrides; tests do the same.
+- **The free app has no account and is login-free.** No sign-in is required to connect IMAP/SMTP accounts, run local Bayesian filtering, or sync community blocklists.
+- **Identity is Firebase UID on all platforms.** It is set as RevenueCat's `appUserID`, enabling cross-platform subscription unlocks (mobile unlocks desktop and vice-versa).
+- **RevenueCat is the single source of truth for entitlements.** Stripe acts solely as a payment processor behind RevenueCat Web Billing.
+- **Sign-in gate before upgrade:** `AppCheckout.present` checks configuration, gates on `AppAuthGate.ensureSignedIn` (native: `DfSignInSheet`; desktop: `DfRestSignInSheet`), and only proceeds if signed in (a dismissed sheet returns `cancelled` without opening payment UI). On native it logs into RevenueCat (`DfRevenueCat.logIn(uid)`) and shows `DfPaywallLauncher`. On desktop it opens `RC_WEB_PURCHASE_LINK` with the percent-encoded UID in the external browser via `DfWebPurchaseLink.open` and returns `notPresented`; the entitlement is retrieved via `dfFetchRevenueCatEntitlement` (GET `/v1/subscribers/{uid}`) when the app resumes (never unlocks directly on browser launch).
+- **Settings Account Tile:** `AccountTile` displays email + Sign Out (calling `FirebaseAuth.signOut()` or REST `signOut()`, plus `DfRevenueCat.logOut()`), or a Sign In button; the tile is completely hidden when Firebase is unconfigured.
 
 **Shared code is defined once.** Tokenizer and fingerprint logic live only in `spam_core`, used by the app and by `train_prior`, so training data and client fingerprints cannot drift apart. Don't duplicate them in the app.
 

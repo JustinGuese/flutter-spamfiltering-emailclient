@@ -190,6 +190,32 @@ class SyncEngine {
         ? await imap.fetchRecent(count: initialFetchCount)
         : await imap.fetchNewerThan(lastUid);
     logInfo('sync', '$serverPath: fetched ${fetched.length} messages (lastUid $lastUid)');
+    await _processFetched(
+      accountId,
+      folderId,
+      fetched,
+      junkFolder,
+      classify: classify,
+      isInbox: isInbox,
+      // A folder's first fetch is history, not new mail.
+      announce: lastUid > 0,
+    );
+    logInfo('sync', '$serverPath: stored ${fetched.length} messages');
+  }
+
+  /// Stores, scores and (for spam) files away freshly fetched [fetched]
+  /// messages. Shared by sync and by [loadOlder] so a message is handled the
+  /// same whichever path brought it in. [announce] lets unread inbox mail
+  /// raise a new-mail notification; off for first fetches and older pages.
+  Future<void> _processFetched(
+    String accountId,
+    String folderId,
+    List<MimeMessage> fetched,
+    ImapFolderInfo? junkFolder, {
+    required bool classify,
+    required bool isInbox,
+    required bool announce,
+  }) async {
     // Newest first, so the top of the list fills in before older mail.
     final messages = [...fetched]..sort((a, b) => (b.uid ?? 0).compareTo(a.uid ?? 0));
     var processed = 0;
@@ -264,7 +290,7 @@ class SyncEngine {
       }
 
       if (isInbox &&
-          lastUid > 0 &&
+          announce &&
           !msg.isSeen &&
           (finalLabel == 'inbox' || finalLabel == 'ham') &&
           finalSpamScore < 0.6) {
@@ -285,7 +311,69 @@ class SyncEngine {
       onNewMail?.call(newlyNotifiable);
     }
     onChanged?.call();
-    logInfo('sync', '$serverPath: stored ${messages.length} messages');
+  }
+
+  // ---- Older mail (scrolling past what is stored) ------------------------------
+
+  /// Messages fetched per "load more" when the list reaches the end of what is
+  /// stored.
+  static const olderPageSize = 50;
+
+  /// Whether older pages can be fetched for a folder of this kind: the ones
+  /// sync keeps current. Junk, Trash, Drafts and virtual folders are not.
+  static bool pagesOlder(String? specialUse) => specialUse == null || specialUse == 'inbox' || specialUse == 'sent';
+
+  final _olderInFlight = <String, Future<int>>{};
+
+  /// Fetches the next page of mail older than anything stored for [folderId]
+  /// and stores it like synced mail. Returns how many messages arrived; 0
+  /// means the start of the mailbox has been reached. Only folders sync keeps
+  /// current (Inbox, Sent, unlabeled) are paged. A second call for the same
+  /// folder joins the one already running.
+  Future<int> loadOlder(String folderId) {
+    return _olderInFlight[folderId] ??= _enqueue(() => _loadOlder(folderId)).whenComplete(() {
+      _olderInFlight.remove(folderId);
+    });
+  }
+
+  Future<int> _loadOlder(String folderId) async {
+    final folder = db.db.select(
+      'SELECT account_id, server_path, special_use FROM folders WHERE id = ?',
+      [folderId],
+    ).firstOrNull;
+    if (folder == null) return 0;
+    final specialUse = folder['special_use'] as String?;
+    if (!pagesOlder(specialUse)) return 0;
+    final accountId = folder['account_id'] as String;
+    final account = accountRepo.listAccounts().where((a) => a.id == accountId).firstOrNull;
+    if (account == null) return 0;
+    final minUid = (db.db.select('SELECT MIN(uid) AS u FROM messages WHERE folder_id = ?', [folderId]).first['u'] as int?) ?? 0;
+    if (minUid <= 1) return 0;
+
+    final auth = await accountRepo.getAuthForAccount(accountId);
+    if (auth == null) throw StateError('No saved password for ${account.email}.');
+    await imap.connectAndAuthenticate(account, auth);
+    try {
+      final junkFolder = (await imap.listSpecialUseFolders()).where((f) => f.specialUse == 'junk').firstOrNull;
+      await imap.selectMailbox(folder['server_path'] as String);
+      final older = await imap.fetchOlderThan(minUid, count: olderPageSize);
+      await _processFetched(
+        accountId,
+        folderId,
+        older,
+        junkFolder,
+        classify: specialUse != 'sent',
+        isInbox: specialUse == 'inbox',
+        announce: false,
+      );
+      return older.length;
+    } finally {
+      try {
+        await imap.disconnect();
+      } catch (e) {
+        logError('imap disconnect', e);
+      }
+    }
   }
 
   /// Writes one fetched message (and its body) to SQLite, replacing any copy.

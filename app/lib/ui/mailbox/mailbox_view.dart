@@ -8,6 +8,7 @@ import '../../platform/platform_services.dart';
 import '../../db/database.dart';
 import '../../filter/verdict_controller.dart';
 import '../../mail/sync_engine.dart';
+import '../../app/log.dart';
 import '../../app/ui_strings.dart';
 import '../../theme/app_type.dart';
 import '../common/app_parts.dart';
@@ -35,6 +36,16 @@ class _MailboxViewState extends ConsumerState<MailboxView> {
   int _selectedIndex = 0;
   _ListFilter _filter = _ListFilter.all;
 
+  // The list loads a page at a time. Reaching the end of what is stored
+  // reveals the next page; past the last stored message, older mail is
+  // fetched from the server.
+  static const _pageSize = SyncEngine.olderPageSize;
+  int _limit = _pageSize;
+  String? _pagedFolderId;
+  bool _loadingOlder = false;
+  bool _olderFailed = false;
+  final _exhausted = <String>{}; // folders whose server has nothing older
+
   @override
   void dispose() {
     _focusNode.dispose();
@@ -51,13 +62,46 @@ class _MailboxViewState extends ConsumerState<MailboxView> {
     final selectedMessageId = ref.watch(selectedMessageIdProvider);
     final db = ref.watch(databaseProvider);
 
-    final query = selectedFolderId != null
-        ? 'SELECT * FROM messages WHERE folder_id = ? ORDER BY date DESC'
-        : 'SELECT * FROM messages ORDER BY date DESC';
-    final params = selectedFolderId != null ? [selectedFolderId] : [];
-    final rows = db.db.select(query, params);
+    if (_pagedFolderId != selectedFolderId) {
+      _pagedFolderId = selectedFolderId;
+      _limit = _pageSize;
+    }
+    final folderWhere = selectedFolderId != null ? 'folder_id = ?' : '1 = 1';
+    final folderParams = <Object?>[?selectedFolderId];
 
-    final allMessages = rows.map((r) => MessageSummary(
+    // Header and chip counts are counted in SQL: the list below only loads a
+    // page at a time, so it cannot be counted from.
+    final counts = {for (final f in _ListFilter.values) f: 0};
+    var unreadTotal = 0;
+    for (final r in db.db.select(
+      "SELECT COALESCE(classification_label, 'inbox') AS l, COUNT(*) AS n, "
+      'SUM(CASE WHEN is_read = 0 THEN 1 ELSE 0 END) AS u FROM messages WHERE $folderWhere GROUP BY l',
+      folderParams,
+    )) {
+      final n = r['n'] as int;
+      counts[_ListFilter.all] = counts[_ListFilter.all]! + n;
+      unreadTotal += (r['u'] as int?) ?? 0;
+      final f = switch (r['l'] as String) {
+        'newsletter' => _ListFilter.newsletters,
+        'spam' => _ListFilter.spam,
+        _ => _ListFilter.inbox,
+      };
+      counts[f] = counts[f]! + n;
+    }
+    final matching = counts[_filter]!;
+
+    final labelWhere = switch (_filter) {
+      _ListFilter.all => '',
+      _ListFilter.inbox => " AND COALESCE(classification_label, 'inbox') IN ('inbox', 'ham')",
+      _ListFilter.newsletters => " AND classification_label = 'newsletter'",
+      _ListFilter.spam => " AND classification_label = 'spam'",
+    };
+    final rows = db.db.select(
+      'SELECT * FROM messages WHERE $folderWhere$labelWhere ORDER BY date DESC LIMIT ?',
+      [...folderParams, _limit],
+    );
+
+    final messages = rows.map((r) => MessageSummary(
       id: r['id'] as String,
       sender: r['sender'] as String,
       senderDomain: r['sender_domain'] as String?,
@@ -71,23 +115,18 @@ class _MailboxViewState extends ConsumerState<MailboxView> {
       spamScore: (r['spam_score'] as num?)?.toDouble() ?? 0.0,
     )).toList();
 
-    bool inFilter(MessageSummary m) => switch (_filter) {
-          _ListFilter.all => true,
-          _ListFilter.inbox => m.label == Label.inbox || m.label == Label.ham,
-          _ListFilter.newsletters => m.label == Label.newsletter,
-          _ListFilter.spam => m.label == Label.spam,
-        };
-    final messages = allMessages.where(inFilter).toList();
-    final unreadTotal = allMessages.where((m) => !m.isRead).length;
-    final folderName = selectedFolderId == null
-        ? AppStrings.navMail
-        : (db.db.select('SELECT name FROM folders WHERE id = ?', [selectedFolderId]).firstOrNull?['name'] as String? ?? AppStrings.navMail);
+    final folderRow = selectedFolderId == null
+        ? null
+        : db.db.select('SELECT name, special_use FROM folders WHERE id = ?', [selectedFolderId]).firstOrNull;
+    final folderName = (folderRow?['name'] as String?) ?? AppStrings.navMail;
+    final hasMoreLocal = matching > messages.length;
+    final canLoadFromServer = selectedFolderId != null &&
+        SyncEngine.pagesOlder(folderRow?['special_use'] as String?) &&
+        !_exhausted.contains(selectedFolderId);
+    final showFooter = hasMoreLocal || canLoadFromServer;
+    final limitAtBuild = _limit;
+    void loadMore() => _loadMore(selectedFolderId, limitAtBuild, hasMoreLocal: hasMoreLocal, canLoadFromServer: canLoadFromServer);
     final narrow = MediaQuery.sizeOf(context).width < 700;
-    int countOf(_ListFilter f) => f == _ListFilter.all ? allMessages.length : allMessages.where((m) => switch (f) {
-          _ListFilter.inbox => m.label == Label.inbox || m.label == Label.ham,
-          _ListFilter.newsletters => m.label == Label.newsletter,
-          _ => m.label == Label.spam,
-        }).length;
 
     return Focus(
       focusNode: _focusNode,
@@ -123,7 +162,7 @@ class _MailboxViewState extends ConsumerState<MailboxView> {
                         Text(folderName, style: AppType.display(palette.textPrimary, size: 32, weight: 600, height: 1.0, letterSpacing: -0.8)),
                         const SizedBox(height: 6),
                         Text(
-                          '${UiStrings.messageCount(allMessages.length)} · ${UiStrings.unreadCount(unreadTotal)}',
+                          '${UiStrings.messageCount(counts[_ListFilter.all]!)} · ${UiStrings.unreadCount(unreadTotal)}',
                           style: AppType.mono(palette.textTertiary, size: 11.5),
                         ),
                       ]),
@@ -153,11 +192,12 @@ class _MailboxViewState extends ConsumerState<MailboxView> {
                           _ListFilter.newsletters => UiStrings.filterNewsletters,
                           _ListFilter.spam => UiStrings.filterSpam,
                         },
-                        count: countOf(f),
+                        count: counts[f]!,
                         selected: _filter == f,
                         onTap: () => setState(() {
                           _filter = f;
                           _selectedIndex = 0;
+                          _limit = _pageSize;
                         }),
                       ),
                     ),
@@ -177,28 +217,71 @@ class _MailboxViewState extends ConsumerState<MailboxView> {
                         ]),
                       ),
                     )
-                  : ListView.builder(
-                      padding: EdgeInsets.only(bottom: narrow ? 88 : 24),
-                      itemCount: messages.length,
-                      itemBuilder: (context, index) {
-                        final msg = messages[index];
-                        return MessageRow(
-                          message: msg,
-                          isSelected: msg.id == selectedMessageId,
-                          isComfortable: isComfortable,
-                          onTap: () {
-                            setState(() => _selectedIndex = index);
-                            ref.read(selectedMessageIdProvider.notifier).set(msg.id);
-                            widget.onSelectMessage?.call(msg.id);
-                          },
-                        );
+                  : NotificationListener<ScrollNotification>(
+                      onNotification: (n) {
+                        if (showFooter && n.metrics.extentAfter < 400) loadMore();
+                        return false;
                       },
+                      child: ListView.builder(
+                        padding: EdgeInsets.only(bottom: narrow ? 88 : 24),
+                        itemCount: messages.length + (showFooter ? 1 : 0),
+                        itemBuilder: (context, index) {
+                          if (index == messages.length) {
+                            return _LoadMoreFooter(
+                              loading: _loadingOlder,
+                              failed: _olderFailed,
+                              onTap: loadMore,
+                            );
+                          }
+                          final msg = messages[index];
+                          return MessageRow(
+                            message: msg,
+                            isSelected: msg.id == selectedMessageId,
+                            isComfortable: isComfortable,
+                            onTap: () {
+                              setState(() => _selectedIndex = index);
+                              ref.read(selectedMessageIdProvider.notifier).set(msg.id);
+                              widget.onSelectMessage?.call(msg.id);
+                            },
+                          );
+                        },
+                      ),
                     ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  /// Shows the next page. Mail already stored is revealed first; once all of
+  /// it is shown, the next page of older mail is fetched from the server.
+  Future<void> _loadMore(String? folderId, int limitAtBuild, {required bool hasMoreLocal, required bool canLoadFromServer}) async {
+    if (_loadingOlder) return;
+    if (hasMoreLocal) {
+      // Relative to the limit this build showed: several scroll events can
+      // arrive before the rebuild, and all must ask for the same page.
+      if (_limit == limitAtBuild) setState(() => _limit = limitAtBuild + _pageSize);
+      return;
+    }
+    if (folderId == null || !canLoadFromServer) return;
+    setState(() {
+      _loadingOlder = true;
+      _olderFailed = false;
+    });
+    try {
+      final n = await ref.read(syncEngineProvider).loadOlder(folderId);
+      if (n == 0) {
+        _exhausted.add(folderId);
+      } else {
+        _limit += _pageSize;
+      }
+    } catch (e, st) {
+      logError('load older mail', e, st);
+      _olderFailed = true;
+    } finally {
+      if (mounted) setState(() => _loadingOlder = false);
+    }
   }
 
   KeyEventResult _handleKeyEvent(KeyEvent event, List<MessageSummary> messages) {
@@ -281,6 +364,36 @@ class _FilterChip extends StatelessWidget {
           Text(label, style: AppType.ui(selected ? c.canvas : c.textSecondary, size: 13, weight: FontWeight.w600)),
           const SizedBox(width: 6),
           Text('$count', style: AppType.mono(selected ? c.canvas.withValues(alpha: 0.7) : c.textTertiary, size: 11, weight: FontWeight.w600)),
+        ]),
+      ),
+    );
+  }
+}
+
+class _LoadMoreFooter extends StatelessWidget {
+  final bool loading;
+  final bool failed;
+  final VoidCallback onTap;
+  const _LoadMoreFooter({required this.loading, required this.failed, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.df.colors;
+    final label = loading
+        ? UiStrings.loadingOlder
+        : failed
+            ? UiStrings.loadOlderFailed
+            : UiStrings.loadOlder;
+    return InkWell(
+      onTap: loading ? null : onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          if (loading) ...[
+            SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: c.textTertiary)),
+            const SizedBox(width: 10),
+          ],
+          Text(label, style: AppType.mono(failed ? c.error.base : c.textTertiary, size: 11.5)),
         ]),
       ),
     );

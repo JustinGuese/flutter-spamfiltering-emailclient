@@ -130,6 +130,16 @@ class ImapService {
     return res.messages.where((m) => (m.uid ?? 0) > lastUid).toList();
   }
 
+  /// The newest [count] messages with a UID below [beforeUid]: the next page
+  /// of older mail when the user scrolls past what is stored. Empty once the
+  /// start of the mailbox is reached.
+  Future<List<MimeMessage>> fetchOlderThan(int beforeUid, {int count = 50}) async {
+    if (beforeUid <= 1) return const [];
+    final uids = (await searchUids('UID 1:${beforeUid - 1}')).where((u) => u < beforeUid).toList()
+      ..sort((a, b) => b.compareTo(a));
+    return fetchByUids(uids.take(count).toList());
+  }
+
   /// UIDs in the selected mailbox matching an IMAP `SEARCH` [criteria] string
   /// (e.g. `TEXT "invoice" UNSEEN`). The server does the matching.
   Future<List<int>> searchUids(String criteria) async {

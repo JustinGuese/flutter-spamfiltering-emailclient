@@ -70,6 +70,8 @@ Synchronized email message envelopes and classification metadata.
 | `list_unsubscribe_post` | `TextColumn` | `nullable` | Raw `List-Unsubscribe-Post` header (e.g. `List-Unsubscribe=One-Click`). Added by `_migrate()`. |
 | `sender_auth_pass` | `IntColumn` | `default: 0` | `1` if receiving server recorded `dmarc=pass` or `dkim=pass` in `Authentication-Results`, `0` otherwise. Added by `_migrate()`. |
 
+Index `messages_folder_date` on `(folder_id, date DESC)` serves the paged mail list. It is created by `AppDatabase._migrate()` (only when both columns exist), not by `tables.dart`.
+
 ---
 
 ### 4. `Bodies` (`bodies`)
