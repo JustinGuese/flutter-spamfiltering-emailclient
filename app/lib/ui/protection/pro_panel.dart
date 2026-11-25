@@ -6,7 +6,7 @@ import '../../app/strings.dart';
 import '../../app/ui_strings.dart';
 import '../../theme/app_type.dart';
 import '../common/mail_queries.dart';
-import '../premium/upsell_sheet.dart';
+import '../premium/app_upsell.dart';
 
 /// Pro stage of the story: what a new device knows with and without Pro.
 /// Only sync is claimed here; the neural scorer is not shipped yet.
@@ -102,7 +102,7 @@ class ProUpsellCard extends StatelessWidget {
         ),
         const SizedBox(width: 14),
         FilledButton(
-          onPressed: () => AppUpsellSheet.show(context),
+          onPressed: () => AppUpsell.show(context),
           style: FilledButton.styleFrom(
             backgroundColor: c.brand.deep,
             foregroundColor: c.textOnBrand,

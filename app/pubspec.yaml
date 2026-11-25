@@ -34,6 +34,16 @@ dependencies:
       url: https://github.com/JustinGuese/df_flutter_shared.git
       path: df_theme
       ref: main
+  df_core_utils:
+    git:
+      url: https://github.com/JustinGuese/df_flutter_shared.git
+      path: df_core_utils
+      ref: main
+  df_safe_url:
+    git:
+      url: https://github.com/JustinGuese/df_flutter_shared.git
+      path: df_safe_url
+      ref: main
   df_ui_widgets:
     git:
       url: https://github.com/JustinGuese/df_flutter_shared.git
@@ -119,6 +129,8 @@ dev_dependencies:
   shared_preferences: any
   flutter_launcher_icons: ^0.14.4
   flutter_native_splash: ^2.4.8
+  flutter_local_notifications: any
+  fake_async: any
 flutter:
   uses-material-design: true
 

@@ -1,4 +1,5 @@
 import 'package:df_theme/df_theme.dart';
+import 'package:df_ui_widgets/df_ui_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -223,7 +224,7 @@ class _AccountChip extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
       decoration: BoxDecoration(border: Border(top: BorderSide(color: c.hairline))),
       child: Row(children: [
-        Monogram(name: name, seed: email, size: 34),
+        DfAvatar(name: name, seed: email, size: 34),
         const SizedBox(width: 10),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

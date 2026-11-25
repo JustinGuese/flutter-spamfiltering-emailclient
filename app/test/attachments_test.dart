@@ -94,30 +94,8 @@ void main() {
     });
   });
 
-  group('file names from the outside world', () {
-    test('safeFileName strips directories, control characters, dots and reserved names', () {
-      expect(safeFileName('../../.bashrc'), 'bashrc');
-      expect(safeFileName(r'C:\Users\x\evil.exe'), 'evil.exe');
-      expect(safeFileName('a<b>:c|d?.txt'), 'a_b__c_d_.txt');
-      expect(safeFileName('nul.txt'), '_nul.txt');
-      expect(safeFileName('   '), 'attachment');
-      expect(safeFileName(null, fallback: 'x'), 'x');
-      expect(safeFileName('report.'), 'report');
-      final long = safeFileName('${'a' * 300}.pdf');
-      expect(long.length, 120);
-      expect(long, endsWith('.pdf'));
-    });
-
-    test('runnable types are recognised case-insensitively', () {
-      expect(isRunnableFileName('Setup.EXE'), isTrue);
-      expect(isRunnableFileName('run.sh'), isTrue);
-      expect(isRunnableFileName('budget.xlsm'), isTrue);
-      expect(isRunnableFileName('photo.jpg'), isFalse);
-      expect(isRunnableFileName('invoice.pdf'), isFalse);
-      expect(isRunnableFileName('noext'), isFalse);
-    });
-
-    test('formatBytes', () {
+  group('formatBytes', () {
+    test('formats byte counts cleanly', () {
       expect(formatBytes(0), '');
       expect(formatBytes(900), '900 B');
       expect(formatBytes(2048), '2 KB');

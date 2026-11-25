@@ -1,9 +1,12 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
+import 'package:df_core_utils/df_core_utils.dart';
 import 'package:enough_mail/enough_mail.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+
+export 'package:df_core_utils/df_core_utils.dart';
 
 /// Largest total size of the files on one outgoing message. Base64 adds a third
 /// on the wire, and the common 25 MB server limit counts the encoded size, so
@@ -125,38 +128,6 @@ int _estimatedSize(MimePart part) {
   };
   final base64 = part.getHeaderValue('content-transfer-encoding')?.trim().toLowerCase() == 'base64';
   return base64 ? encoded * 3 ~/ 4 : encoded;
-}
-
-/// A file name that is safe to create on disk: no directories, no control or
-/// reserved characters, no leading dots, bounded length. Attachment names come
-/// from the sender, so `../../.bashrc` and `CON` are expected inputs.
-String safeFileName(String? name, {String fallback = 'attachment'}) {
-  var s = (name ?? '').replaceAll('\\', '/').split('/').last;
-  s = s.replaceAll(RegExp(r'[\x00-\x1f\x7f<>:"|?*]'), '_').trim();
-  s = s.replaceFirst(RegExp(r'^\.+'), '').replaceFirst(RegExp(r'[. ]+$'), '');
-  if (RegExp(r'^(con|prn|aux|nul|com\d|lpt\d)(\..*)?$', caseSensitive: false).hasMatch(s)) s = '_$s';
-  if (s.isEmpty) return fallback;
-  if (s.length > 120) {
-    final ext = p.extension(s);
-    final keep = ext.length <= 12 ? ext : '';
-    s = s.substring(0, 120 - keep.length) + keep;
-  }
-  return s;
-}
-
-/// Extensions the operating system would *run* (or hand to an interpreter) when
-/// opened. A mail client must not do that on a tap.
-const _runnableExtensions = {
-  'exe', 'msi', 'bat', 'cmd', 'com', 'scr', 'pif', 'ps1', 'psm1', 'vbs', 'vbe', 'js', 'jse', 'wsf', 'wsh',
-  'hta', 'cpl', 'lnk', 'reg', 'jar', 'sh', 'bash', 'command', 'desktop', 'app', 'apk', 'dmg', 'pkg',
-  'appimage', 'run', 'bin', 'docm', 'xlsm', 'pptm', 'iso', 'url', 'scpt', 'workflow', 'py',
-};
-
-/// True when opening [fileName] could execute code. The reader then offers
-/// "Save as…" instead of opening it.
-bool isRunnableFileName(String fileName) {
-  final ext = p.extension(fileName).toLowerCase().replaceFirst('.', '');
-  return _runnableExtensions.contains(ext);
 }
 
 /// "1.4 MB", "212 KB", "" for unknown.

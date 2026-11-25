@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/ui_strings.dart';
+import '../../notifications/mail_notification_permission.dart';
 import '../../notifications/mail_notification_service.dart';
 import '../../notifications/notify_prefs.dart';
 import '../../notifications/notify_types.dart';
@@ -19,7 +20,7 @@ class NotificationsTile extends ConsumerWidget {
   });
 
   /// Optional hook for requesting/ensuring notification permission.
-  /// Defaults to [ensureDfNotificationPermission].
+  /// Defaults to [ensureMailNotificationPermission].
   final Future<bool> Function(BuildContext context, WidgetRef ref)?
       ensurePermission;
 
@@ -74,7 +75,7 @@ class NotificationsTile extends ConsumerWidget {
             ref.read(notifyModeProvider.notifier).setMode(newMode);
             if (newMode != NotifyMode.off) {
               final requester =
-                  ensurePermission ?? ensureDfNotificationPermission;
+                  ensurePermission ?? ensureMailNotificationPermission;
               final granted = await requester(context, ref);
               if (context.mounted) {
                 ref

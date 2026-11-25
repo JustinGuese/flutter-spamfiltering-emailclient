@@ -9,7 +9,7 @@ import 'package:spamfiltering_emailclient/app/strings.dart';
 import 'package:spamfiltering_emailclient/app/ui_strings.dart';
 import 'package:spamfiltering_emailclient/theme/app_brand.dart';
 import 'package:spamfiltering_emailclient/ui/premium/premium_gate.dart';
-import 'package:spamfiltering_emailclient/ui/premium/upsell_sheet.dart';
+import 'package:spamfiltering_emailclient/ui/premium/app_upsell.dart';
 
 void main() {
   setUpAll(() async {
@@ -74,8 +74,8 @@ void main() {
       await tester.tap(find.byType(InkWell));
       await tester.pumpAndSettle();
 
-      // AppUpsellSheet opens with honest pricing invariants
-      expect(find.byType(AppUpsellSheet), findsOneWidget);
+      // DfUpsellSheet opens with honest pricing invariants
+      expect(find.byType(DfUpsellSheet), findsOneWidget);
       expect(find.text(AppStrings.proAnnual), findsOneWidget);
       expect(find.text(UiStrings.upsellRenewal), findsOneWidget);
       expect(find.text(UiStrings.upsellLater), findsWidgets);
@@ -85,7 +85,7 @@ void main() {
       await tester.tap(find.byIcon(Icons.close_rounded));
       await tester.pumpAndSettle();
 
-      expect(find.byType(AppUpsellSheet), findsNothing);
+      expect(find.byType(DfUpsellSheet), findsNothing);
       expect(find.text('Protected Pro Feature'), findsNothing);
     });
 
@@ -105,7 +105,7 @@ void main() {
       await tester.tap(find.text('Custom Locked State'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(AppUpsellSheet), findsOneWidget);
+      expect(find.byType(DfUpsellSheet), findsOneWidget);
     });
 
     testWidgets('subscribing in upsell sheet unlocks locally via DfPremiumGate', (tester) async {
@@ -120,25 +120,25 @@ void main() {
       await tester.tap(find.byType(InkWell));
       await tester.pumpAndSettle();
 
-      expect(find.byType(AppUpsellSheet), findsOneWidget);
+      expect(find.byType(DfUpsellSheet), findsOneWidget);
 
       // Tap upgrade
       await tester.tap(find.text(AppStrings.proUpgrade));
       await tester.pumpAndSettle();
 
       // Now unlocked locally via DfPaywallResult.purchased
-      expect(find.byType(AppUpsellSheet), findsNothing);
+      expect(find.byType(DfUpsellSheet), findsNothing);
       expect(find.text('Protected Pro Feature'), findsOneWidget);
     });
   });
 
-  group('AppUpsellSheet honest pricing invariants', () {
+  group('DfUpsellSheet honest pricing invariants', () {
     testWidgets('displays visible price, renewal terms, and equal prominence buttons', (tester) async {
       configureTesterSize(tester);
       await tester.pumpWidget(buildApp(
         child: Builder(
           builder: (ctx) => ElevatedButton(
-            onPressed: () => AppUpsellSheet.show(ctx),
+            onPressed: () => AppUpsell.show(ctx),
             child: const Text('Open Upsell'),
           ),
         ),
@@ -179,13 +179,13 @@ void main() {
       );
 
       // First call shows
-      final future1 = AppUpsellSheet.maybeShow(
+      final future1 = AppUpsell.maybeShow(
         testContext!,
         cooldown: cooldown,
         prefs: prefs,
       );
       await tester.pumpAndSettle();
-      expect(find.byType(AppUpsellSheet), findsOneWidget);
+      expect(find.byType(DfUpsellSheet), findsOneWidget);
 
       // Dismiss
       await tester.tap(find.byIcon(Icons.close_rounded));
@@ -194,7 +194,7 @@ void main() {
       expect(shown1, isTrue);
 
       // Second immediate call is blocked by cooldown
-      final shown2 = await AppUpsellSheet.maybeShow(
+      final shown2 = await AppUpsell.maybeShow(
         testContext!,
         cooldown: cooldown,
         prefs: prefs,

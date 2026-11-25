@@ -18,7 +18,7 @@ import 'package:spamfiltering_emailclient/theme/app_brand.dart';
 import 'package:spamfiltering_emailclient/ui/account_setup/account_setup_view.dart';
 import 'package:spamfiltering_emailclient/ui/compose/compose_view.dart';
 import 'package:spamfiltering_emailclient/funnel/launch_gate.dart';
-import 'package:spamfiltering_emailclient/ui/premium/upsell_sheet.dart';
+import 'package:spamfiltering_emailclient/ui/premium/app_upsell.dart';
 import 'package:spamfiltering_emailclient/ui/settings/settings_view.dart';
 import 'package:spamfiltering_emailclient/ui/shell/nav_shell.dart';
 
@@ -181,7 +181,7 @@ void main() {
     });
   });
   testWidgets('upsell sheet', (t) async {
-    await shot(t, 'upsell', Scaffold(body: Center(child: SizedBox(width: 480, child: AppUpsellSheet(onDismiss: () {}, onSubscribed: () {})))), size: const Size(700, 800));
+    await shot(t, 'upsell', Scaffold(body: Center(child: SizedBox(width: 480, child: AppUpsell.buildSheet(onDismiss: () {}, onCta: () {})))), size: const Size(700, 800));
   });
   testWidgets('settings tiles', (t) async {
     await shot(t, 'settings_tiles',

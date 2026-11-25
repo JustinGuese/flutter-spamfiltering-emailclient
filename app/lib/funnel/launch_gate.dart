@@ -7,7 +7,7 @@ import 'funnel_config.dart';
 import '../app/strings.dart';
 import '../mail/account_repository.dart';
 import '../ui/account_setup/account_setup_view.dart';
-import '../ui/premium/upsell_sheet.dart';
+import '../ui/premium/app_upsell.dart';
 
 /// Funnel entry gate wrapping the main application with skippable onboarding
 /// and an optional paywall. Once the funnel is done, a user with no mail
@@ -80,16 +80,17 @@ class AppLaunchGate extends StatelessWidget {
       // The funnel mounts the paywall as a full page, not inside a bottom
       // sheet, so it needs its own Material surface (otherwise: black canvas
       // and yellow-underlined text).
-      //
-      // Invariant note: Shared [DfUpsellSheet] from `df_funnel` cannot express
-      // visible price + renewal terms or an equally prominent close button.
-      // Per PLAN-oauth-notify, [AppUpsellSheet] is retained here to uphold
-      // the honesty rules.
       paywallBuilder: (ctx, onComplete) => Scaffold(
         backgroundColor: ctx.df.colors.canvas,
-        body: AppUpsellSheet(
-          onDismiss: onComplete,
-          onSubscribed: onComplete,
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: AppUpsell.buildSheet(
+              popOnCta: false,
+              onDismiss: onComplete,
+              onCta: onComplete,
+            ),
+          ),
         ),
       ),
       // DfLaunchGate only mounts this once the funnel is complete.
