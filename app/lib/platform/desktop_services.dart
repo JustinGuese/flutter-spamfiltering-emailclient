@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:df_revenuecat/df_revenuecat.dart';
 import 'package:df_firebase_auth/df_firebase_auth.dart';
+import 'package:df_firebase_rest/df_firebase_rest.dart';
 import 'package:df_funnel/df_funnel.dart';
 import 'package:df_billing/df_billing.dart';
 import 'platform_services.dart';
@@ -13,6 +14,13 @@ class DesktopPlatformServices implements AppPlatformServices {
 
   @override
   String get platformName => Platform.operatingSystem;
+
+  static const webApiKey = String.fromEnvironment('FIREBASE_WEB_API_KEY', defaultValue: '');
+  static const rcWebPurchaseLink = String.fromEnvironment('RC_WEB_PURCHASE_LINK', defaultValue: '');
+  static const rcWebPublicKey = String.fromEnvironment('RC_WEB_PUBLIC_API_KEY', defaultValue: '');
+
+  @override
+  bool get isFirebaseConfigured => webApiKey.isNotEmpty;
 
   @override
   Future<void> initialize() async {
@@ -28,5 +36,27 @@ class DesktopPlatformServices implements AppPlatformServices {
     dfEffectivePremiumProvider.overrideWith((ref) {
       return ref.watch(dfIsPremiumProvider);
     }),
+    if (webApiKey.isNotEmpty) ...[
+      dfFirebaseRestAuthProvider.overrideWithValue(
+        FirebaseRestAuth(apiKey: webApiKey),
+      ),
+      dfSubscriptionFetcherProvider.overrideWith((ref) {
+        return () async {
+          final uid = ref.read(dfFirebaseRestCurrentUserProvider)?.uid;
+          if (uid == null || uid.isEmpty) return const DfSubscriptionStatus.free();
+          final snapshot = await dfFetchRevenueCatEntitlement(
+            appUserId: uid,
+            publicApiKey: rcWebPublicKey,
+            entitlementId: 'pro',
+          );
+          return DfSubscriptionStatus(
+            status: snapshot.isActive ? 'active' : 'free',
+            isPremium: snapshot.isActive,
+            currentPeriodEnd: snapshot.expiresAt,
+          );
+        };
+      }),
+      dfEffectivePremiumProvider.overrideWith((ref) => ref.watch(dfIsPremiumProvider)),
+    ],
   ];
 }

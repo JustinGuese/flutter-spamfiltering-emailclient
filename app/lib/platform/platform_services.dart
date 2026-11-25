@@ -8,6 +8,7 @@ abstract class AppPlatformServices {
   Future<void> initialize();
   bool get isDesktop;
   String get platformName;
+  bool get isFirebaseConfigured;
 }
 
 /// Provider holding the active platform services implementation.

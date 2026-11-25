@@ -249,4 +249,9 @@ abstract final class UiStrings {
   static const accountNoAccounts = 'No accounts configured.';
   static const accountAdd = 'Add account';
   static const accountAddAccount = 'Add Account';
+  static const accountSignedInAs = 'Signed in as';
+  static const accountSignOut = 'Sign out';
+  static const accountSignIn = 'Sign in';
+  static const accountNotSignedIn = 'DataFortress Account';
+  static const accountSignInPrompt = 'Sign in to access Pro sync and your subscription.';
 }

@@ -14,6 +14,15 @@ The client codebase defines these compile-time environment flags using `String.f
 |---|---|---|---|
 | `BACKEND_URL` | `app/lib/api/backend_config.dart` (used by `api_client.dart` and `report_client.dart`) | `https://emailprogram-spamfilter-backend-api.datafortress.cloud` (the hosted backend) | Base URL for community blocklist sync, threat reports, and ham dispute votes. |
 | `REVENUECAT_API_KEY_IOS` / `REVENUECAT_API_KEY_ANDROID` | `app/lib/platform/native_services.dart` | `""` (empty string) | Public SDK keys (one per store app) for RevenueCat subscription and entitlement management. iOS and macOS share the iOS key. `REVENUECAT_API_KEY` is still read as a single fallback for both. |
+| `FIREBASE_API_KEY` | `app/lib/platform/firebase_options_from_env.dart` | `""` | Firebase Web API key used for native `FirebaseOptions` initialization. |
+| `FIREBASE_APP_ID_ANDROID` | `app/lib/platform/firebase_options_from_env.dart` | `""` | Firebase application ID for Android (e.g. `1:801199434424:android:...`). |
+| `FIREBASE_APP_ID_IOS` | `app/lib/platform/firebase_options_from_env.dart` | `""` | Firebase application ID for iOS and macOS (e.g. `1:801199434424:ios:...`). |
+| `FIREBASE_PROJECT_ID` | `app/lib/platform/firebase_options_from_env.dart` | `""` | Firebase project ID (e.g. `datafortress-mail`). |
+| `FIREBASE_MESSAGING_SENDER_ID` | `app/lib/platform/firebase_options_from_env.dart` | `""` | Firebase Cloud Messaging sender ID / project number. |
+| `FIREBASE_AUTH_DOMAIN` | `app/lib/platform/firebase_options_from_env.dart` | `""` | Firebase Auth domain (e.g. `datafortress-mail.firebaseapp.com`). |
+| `FIREBASE_WEB_API_KEY` | `app/lib/platform/desktop_services.dart` | `""` | Firebase Web API key used for desktop REST authentication on Windows and Linux via `df_firebase_rest`. |
+| `RC_WEB_PURCHASE_LINK` | `app/lib/platform/desktop_services.dart` | `""` | Base URL for the RevenueCat Web Purchase Link (e.g. `https://pay.rev.cat/<token>/`), opened with the user's UID on desktop. |
+| `RC_WEB_PUBLIC_API_KEY` | `app/lib/platform/desktop_services.dart` | `""` | RevenueCat Web Billing public API key used by desktop client to query subscriber entitlement via REST. |
 | `GOOGLE_OAUTH_CLIENT_ID_IOS` | `app/lib/mail/oauth/oauth_config.dart` | `""` | Google OAuth client ID used on iOS **and macOS**. |
 | `GOOGLE_OAUTH_CLIENT_ID_ANDROID` | `app/lib/mail/oauth/oauth_config.dart` | `""` | Google OAuth client ID used on Android. |
 | `GOOGLE_OAUTH_CLIENT_ID_DESKTOP` | `app/lib/mail/oauth/oauth_config.dart` | `""` | Google OAuth client ID used on Windows and Linux. |
@@ -33,19 +42,58 @@ The client codebase defines these compile-time environment flags using `String.f
   flutter run -d linux --dart-define=BACKEND_URL=http://localhost:8000   # e.g. a backend you run locally
   ```
 
-### 2. `REVENUECAT_API_KEY_IOS` / `REVENUECAT_API_KEY_ANDROID`
-- **Location**: `app/lib/platform/native_services.dart`
-- **When unset**: Defaults to `""` (empty string).
-- **Behavior**:
-  - When empty, `NativePlatformServices.initialize()` skips calling `DfRevenueCat.initialize()`.
-  - The paywall presented in the onboarding funnel remains skippable via "Maybe later".
-  - Pro features that require cloud subscription validation are disabled, and the app remains entirely in the free, local tier.
-- **Customization**:
-  ```bash
-  flutter run -d macos --dart-define=REVENUECAT_API_KEY_IOS=appl_your_revenuecat_key
-  # or keep both keys in a gitignored file (copy app/billing.defines.example.json):
-  flutter run -d macos --dart-define-from-file=billing.defines.json
-  ```
+### 2. Firebase & RevenueCat Pro-Auth Configuration
+
+DataFortress Pro features (multi-device filter sync and premium entitlements) require user authentication and subscription management. The free email client and local Bayesian filter **never require an account or these keys**.
+
+Because the repository is open source, Firebase is initialized from compile-time `--dart-define` parameters rather than committed `google-services.json` or `GoogleService-Info.plist` files.
+
+#### Native Defines (iOS, Android, macOS)
+- `FIREBASE_API_KEY`: The API key for your Firebase project.
+- `FIREBASE_APP_ID_ANDROID`: Android App ID (e.g., `1:801199434424:android:...`).
+- `FIREBASE_APP_ID_IOS`: iOS and macOS App ID (e.g., `1:801199434424:ios:...`).
+- `FIREBASE_PROJECT_ID`: The Firebase project identifier (e.g., `datafortress-mail`).
+- `FIREBASE_MESSAGING_SENDER_ID`: Project number / sender ID.
+- `FIREBASE_AUTH_DOMAIN`: Auth domain (e.g., `datafortress-mail.firebaseapp.com`).
+- `REVENUECAT_API_KEY_IOS` / `REVENUECAT_API_KEY_ANDROID`: Public SDK keys for App Store and Google Play billing.
+
+On native platforms, `NativePlatformServices` constructs a `FirebaseOptions` object from these flags and initializes Firebase Auth. When a user logs in, their Firebase UID is registered with RevenueCat (`DfRevenueCat.logIn(uid)`).
+
+#### Desktop Defines (Windows, Linux)
+Desktop platforms bypass store SDKs and native Firebase binaries entirely, using HTTP REST APIs:
+- `FIREBASE_WEB_API_KEY`: Used by `df_firebase_rest` to authenticate users via Firebase Auth REST endpoints.
+- `RC_WEB_PURCHASE_LINK`: The base URL of your RevenueCat Web Purchase Link (hosted Stripe checkout, e.g., `https://pay.rev.cat/<token>/`). When upgrading, the app appends the user's percent-encoded Firebase UID and opens this link in the default browser.
+- `RC_WEB_PUBLIC_API_KEY`: Public key used by `dfFetchRevenueCatEntitlement` to query RevenueCat's REST endpoint (`GET /v1/subscribers/{uid}`) when the desktop app resumes, checking if the `pro` entitlement is active.
+
+#### Defining Billing Keys Locally (`billing.defines.json`)
+Copy `app/billing.defines.example.json` to `app/billing.defines.json` (gitignored, never commit real keys):
+```json
+{
+  "REVENUECAT_API_KEY_IOS": "appl_your_revenuecat_ios_macos_public_sdk_key",
+  "REVENUECAT_API_KEY_ANDROID": "goog_your_revenuecat_android_public_sdk_key",
+  "FIREBASE_API_KEY": "your_firebase_api_key",
+  "FIREBASE_APP_ID_ANDROID": "1:000000000000:android:0000000000000000000000",
+  "FIREBASE_APP_ID_IOS": "1:000000000000:ios:0000000000000000000000",
+  "FIREBASE_PROJECT_ID": "your_firebase_project_id",
+  "FIREBASE_MESSAGING_SENDER_ID": "000000000000",
+  "FIREBASE_AUTH_DOMAIN": "your_project.firebaseapp.com",
+  "FIREBASE_WEB_API_KEY": "your_firebase_web_api_key",
+  "RC_WEB_PURCHASE_LINK": "https://pay.rev.cat/your_token/",
+  "RC_WEB_PUBLIC_API_KEY": "rcb_your_revenuecat_web_public_key"
+}
+```
+Run with:
+```bash
+flutter run -d macos --dart-define-from-file=billing.defines.json
+flutter run -d linux --dart-define-from-file=billing.defines.json
+```
+
+#### Behavior When Unconfigured
+- If Firebase defines are missing, the app functions normally without errors.
+- The Settings → Account tile is hidden.
+- Tapping **Upgrade to Pro** informs the user that checkout is unavailable in this build (`UiStrings.checkoutUnavailable`).
+
+---
 
 ### 3. OAuth client IDs (Google and Microsoft sign-in)
 - **Location**: `app/lib/mail/oauth/oauth_config.dart`. The PKCE exchange, token refresh and the interactive flows come from the shared `df_oauth` package; this file only supplies the mail scopes, client IDs and redirect URIs.
@@ -93,8 +141,8 @@ The following table details what works out-of-the-box with zero keys and no back
 | **Community Blocklist Sync** | **No.** Cannot download global fingerprint lists without a reachable community backend. | Requires `BACKEND_URL` serving `/v1/blocklist/*`. |
 | **Anonymous Spam Reporting** | **No.** Local MinHash LSH and URL hashes are not broadcast without a reachable backend. | Requires `BACKEND_URL` serving `/v1/reports`. |
 | **Ham Dispute Votes** | **No.** False positive rescues cannot be broadcast without a reachable backend. | Requires `BACKEND_URL` serving `/v1/votes/ham`. |
-| **Pro Encrypted Filter Sync** | **No.** Synchronizing trained tokens across devices requires Firebase Auth JWT and backend sync endpoint. | Requires `BACKEND_URL` and Firebase Auth. |
-| **Pro Subscriptions** | **No.** In-app purchases and receipt validation require RevenueCat. | Requires `REVENUECAT_API_KEY_IOS` / `_ANDROID`. |
+| **Pro Encrypted Filter Sync** | **No.** Synchronizing trained tokens across devices requires Firebase Auth and backend sync endpoint. | Requires `BACKEND_URL` and Firebase Auth (`FIREBASE_*` defines). |
+| **Pro Subscriptions** | **No.** In-app purchases, web checkout, and receipt validation require RevenueCat and Firebase Auth. | Requires `REVENUECAT_API_KEY_IOS` / `_ANDROID` (native) or `RC_WEB_PURCHASE_LINK` + `RC_WEB_PUBLIC_API_KEY` (desktop), plus Firebase Auth. |
 
 ---
 

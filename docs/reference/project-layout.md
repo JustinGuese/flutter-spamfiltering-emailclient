@@ -39,7 +39,7 @@ The client email application built with Flutter and Riverpod.
 | `lib/funnel/` | Launch funnel: `funnel_config.dart` (onboarding, then a skippable paywall) and `launch_gate.dart` (the onboarding screen is the shared `df_onboarding` carousel configured here). |
 | `lib/mail/` | IMAP and SMTP protocol engine: `sync_engine.dart` (account sync, storing unsubscribe headers/auth verdicts, and `searchRemote`, the server-side search), `list_unsubscribe.dart` (RFC 8058 One-Click and RFC 2369 mailto parser), `unsubscribe_service.dart` (RFC 8058 POST and mailto unsubscribe dispatcher using `df_safe_url`), `imap_service.dart` (includes `searchUids` / `fetchByUids`), `smtp_service.dart` (includes `buildOutgoingMessage`), `attachments.dart` (attachment extraction, safe file names via `df_core_utils`, the download cache, the outgoing-file model), `reply_builder.dart` (Reply / Reply All / Forward drafts), `account_repository.dart` (credentials, OAuth token refresh), `autodiscover.dart`, `mail_auth.dart`, `html_sanitizer.dart`, `html_to_text.dart`, and `oauth/` (`oauth_config.dart`, `oauth_flow.dart`, `oauth_flow_native.dart`, `oauth_flow_loopback.dart`, `oauth_service.dart`, `oauth_types.dart`: Google and Microsoft sign-in on top of the shared `df_oauth`). |
 | `lib/notifications/` | New-mail notifications: `notify_types.dart` (`NotifyMode`, `NewMail`), `notify_prefs.dart` (settings-backed providers), `new_mail_notifier.dart` (batching per mode), `mail_notification_service.dart` (adapter over the shared `df_notifications`), `mail_notification_permission.dart` (soft-ask permission priming copy). |
-| `lib/platform/` | Native platform abstraction: `platform_services.dart` (the contract plus shared UI-state providers), `native_services.dart` (iOS, Android, macOS), `desktop_services.dart` (Windows, Linux). |
+| `lib/platform/` | Native platform abstraction: `platform_services.dart` (the contract plus shared UI-state providers), `native_services.dart` (iOS, Android, macOS: native Firebase Auth + RevenueCat SDK), `desktop_services.dart` (Windows, Linux: REST Firebase Auth via `df_firebase_rest`, RevenueCat Web Purchase Link + REST entitlement fetch), `firebase_options_from_env.dart` (constructs `FirebaseOptions` from compile-time defines). |
 | `lib/premium/` | Pro features: `filter_sync.dart` (E2EE CRDT PN-counters), `crdt_counters.dart`, `sync_key.dart`, `onnx_scorer.dart`, `model_downloader.dart`. |
 | `lib/search/` | Search tab logic: `search_query.dart` (parses the search box into an FTS5 `MATCH` expression, SQL filters and IMAP `SEARCH` criteria) and `search_service.dart` (runs it against the `search_index` table and ranks with BM25). |
 | `lib/theme/` | Ledger Desk design system: `app_theme.dart`, `app_brand.dart`, `app_type.dart`. |
@@ -51,9 +51,9 @@ The client email application built with Flutter and Riverpod.
 | ├── `mailbox/` | Mailbox folder view and message list: `mailbox_view.dart`, `message_row.dart`. |
 | ├── `protection/` | "Your protection" full-screen view opened from the sidebar filter card: `protection_view.dart` (tabs, caught list, learned), `protection_story.dart` (the four-stage replay), `pro_panel.dart` (Pro stage and upgrade card). |
 | ├── `search/` | The Search tab: `search_view.dart` (search box, results list, server-search status, reader pane). |
-| ├── `premium/` | Pro upgrade, device pairing, and subscription UI (`app_upsell.dart`, `app_checkout.dart`, `premium_gate.dart`, `sync_tile.dart`). |
+| ├── `premium/` | Pro upgrade, device pairing, and subscription UI: `app_upsell.dart`, `app_checkout.dart` (native RevenueCat vs desktop Web Purchase Link), `app_auth_gate.dart` (sign-in gate before upgrade), `premium_gate.dart`, `sync_tile.dart`. |
 | ├── `reader/` | Message reading pane (Reply / Reply All / Forward buttons, unsubscribe button and status display, full-screen view) with remote image blocker: `reader_view.dart`, `attachment_strip.dart` (the received files: open, save), `image_block_banner.dart`. |
-| ├── `settings/` | User preferences: `settings_view.dart`, `accounts_tile.dart`, `appearance_tile.dart`, `sharing_tile.dart`, `notifications_tile.dart`, `unsubscribe_tile.dart` (auto-unsubscribe toggle). |
+| ├── `settings/` | User preferences: `settings_view.dart`, `account_tile.dart` (Firebase / Pro account tile showing email and sign-out or sign-in), `accounts_tile.dart` (IMAP accounts), `appearance_tile.dart`, `sharing_tile.dart`, `notifications_tile.dart`, `unsubscribe_tile.dart` (auto-unsubscribe toggle). |
 | └── `shell/` | Responsive window layouts: `three_pane_layout.dart`, `folders_sidebar.dart`, `nav_shell.dart`. |
 
 ### Platform Runner Projects
@@ -66,6 +66,7 @@ The client email application built with Flutter and Riverpod.
 
 ### App Root Files
 
+- `billing.defines.example.json`: Template for RevenueCat, Firebase, and web billing compile-time defines passed with `--dart-define-from-file`. Copy it to `billing.defines.json` (gitignored, never commit real keys); see [Configuration & Environment Flags](../getting-started/configuration.md#2-firebase--revenuecat-pro-auth-configuration).
 - `oauth.defines.example.json`: Template for the OAuth client IDs passed with `--dart-define-from-file`. Copy it to `oauth.defines.json` (gitignored) and fill it in; see [OAuth Setup](../contributing/oauth-setup.md).
 
 ### App Assets (`app/assets/`)

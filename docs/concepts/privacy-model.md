@@ -4,6 +4,35 @@ DataFortress Mail is engineered around the principle that personal email data mu
 
 ![Onboarding Privacy Screen](../assets/screenshots/onboarding_page1.png)
 
+## Account & Identity Model: Free vs Pro
+
+DataFortress Mail makes a strict separation between core email functionality and cloud-backed Pro subscriptions:
+
+### 1. The Free App Has No Account
+The free application is completely **login-free and account-free**:
+- You never create an account with DataFortress to use the mail client.
+- Your email accounts connect directly from your device to your mail server (IMAP/SMTP) using credentials stored strictly in your operating system's hardware keystore.
+- Bayesian spam filtering, heuristics, token training, and search indexing execute 100% locally on your machine.
+- Anonymous community blocklist sync and threat reporting communicate with zero-knowledge, pseudorandom hashes without any user identifier, email, or device ID.
+
+### 2. Pro Identity Architecture
+Subscribing to DataFortress Pro introduces an account strictly for entitlement verification and encrypted multi-device synchronization:
+- **Firebase UID is the Subscription ID**: When upgrading to Pro, you sign in or create an account with Firebase Auth (email/password). Your Firebase User ID (`uid`) serves as the unique subscriber identifier.
+- **Cross-Platform Entitlement**: The Firebase UID is passed as the RevenueCat `appUserID`. Because the same UID identifies you across platforms, purchasing Pro on iOS or Android unlocks Pro on Linux and Windows, and vice versa.
+- **Sign-In Gate Before Payment**: The client enforces sign-in *prior* to opening any paywall or checkout link. Payment is never initiated anonymously, ensuring your subscription is always tied to your account.
+
+### 3. Privacy Boundaries: What Cloud Providers See
+
+| Service | What It Sees | What It NEVER Sees |
+|---|---|---|
+| **Firebase Auth** | Email address, password hash, Firebase UID, account creation/sign-in timestamps, and IP address during authentication. | Email messages, subjects, bodies, headers, attachments, contacts, IMAP/SMTP passwords, or spam filter training data. |
+| **RevenueCat** | Firebase UID (as `appUserID`), subscription status, active entitlements (`pro`), purchase dates, renewal/expiration timestamps, store transaction identifiers, and platform OS. | Email messages, bodies, mail credentials, Bayes tokens, or contacts. (Email address is only seen if optionally supplied to the checkout link). |
+| **Stripe** (Web Billing gateway behind RevenueCat) | Payment card details, billing address, customer name, transaction amounts, and Stripe customer/charge IDs. | Email content, mail account passwords, Bayes filter tokens, or mailbox usage. |
+| **App Store / Google Play** (Mobile Store IAP) | Apple ID or Google account, in-app purchase transaction and payment info. | Email content, mail credentials, or spam filter tokens. |
+| **DataFortress Sync Server** | Authenticated Firebase UID and 256-bit AES-GCM encrypted ciphertext token blobs (`PUT /v1/sync/blobs/<slot>`). | Encryption keys (AES-256 key generated on device with `Random.secure()`), unencrypted Bayes tokens, email content, or personal identifiers. |
+
+---
+
 ## Data Flow: What Leaves the Device
 
 The following table itemizes what data crosses network boundaries versus what remains exclusively on the local client device:
@@ -22,10 +51,13 @@ The following table itemizes what data crosses network boundaries versus what re
 | **IMAP/SMTP mailbox traffic** | User's configured mail server | TLS 1.2+ encrypted socket | Required for email sync & sending |
 | **Auto-unsubscribe (RFC 8058 One-Click)** | Sender's published unsubscribe URL | HTTPS POST (port 443, no redirects) | Fired when marking email as spam (if authenticated sender and setting enabled, after 10 s undo window) or manual Unsubscribe button. Never sent to DataFortress backend. |
 | **Auto-unsubscribe (RFC 2369 mailto)** | User's configured mail server to sender's unsubscribe address | TLS 1.2+ encrypted SMTP | Sent from user's account when RFC 8058 is unavailable. Never sent to DataFortress backend. |
-| **Anonymous spam fingerprints** | Hosted community API | HTTPS / Zero-knowledge payload | Only when community sharing is enabled |
+| **Anonymous spam fingerprints** | Hosted community API | HTTPS / Zero-knowledge payload | Only when community sharing is enabled; free app has no user ID attached |
+| **User authentication credentials (email/password)** | Firebase Auth | TLS 1.3 / HTTPS | Only for Pro users when signing in or creating an account; free app sends nothing |
+| **Subscriber identity & entitlement state** | RevenueCat | HTTPS REST / SDK | RevenueCat tracks `pro` entitlement under Firebase UID; free app sends nothing |
+| **Web payment details** | Stripe (via RevenueCat Web Billing) | HTTPS / PCI-DSS Compliant | Only on desktop web checkout when user purchases a subscription |
 | **Encrypted CRDT token blobs** | Hosted sync storage | HTTPS / 256-bit AES-GCM encrypted | Only for Pro users with E2EE sync enabled |
 | **Model weights download** | Hosted model distribution | HTTPS GET | Only for Pro users with neural model enabled |
-| **Store receipts / subscription tokens** | RevenueCat / Stripe / App Store | HTTPS | Only during Pro purchase & verification |
+| **Store receipts / subscription tokens** | RevenueCat / App Store / Play Store | HTTPS | Only during native Pro purchase & verification |
 
 ---
 

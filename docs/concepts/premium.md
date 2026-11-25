@@ -4,45 +4,83 @@ DataFortress Mail follows an open-core model. All core email client features, th
 
 DataFortress Pro introduces multi-device cryptographic synchronization and advanced on-device machine learning models. This document describes the client-side architecture of Pro features.
 
-## Entitlement Gating
+## Entitlement Gating & Pro-Auth Architecture
 
-Pro features are gated on the client through Riverpod providers responding to platform-specific billing systems:
+DataFortress Mail adheres to a strict principle: **the free app stays 100% login-free**. Users never need to register an account or sign in to connect their IMAP/SMTP mail accounts, run on-device Bayesian spam filtering, or sync community blocklists.
+
+Authentication is introduced **only when the user upgrades to Pro** (or explicitly signs in through Settings → Account). Pro features are gated on the client through Riverpod providers responding to platform-specific billing systems, unified by a single identity:
+
+- **Identity = Firebase UID on all platforms**: The Firebase user ID (`uid`) is assigned as the RevenueCat `appUserID`. This single identifier allows a subscription purchased on mobile to unlock desktop features and vice versa.
+- **RevenueCat is the single source of truth for "is Pro"**: Stripe acts exclusively as the payment gateway behind RevenueCat Web Billing.
+- **Sign-in gate before upgrade**: Upgrading to Pro requires authentication *before* presenting any paywall or checkout link.
 
 ```mermaid
 graph TD
-    subgraph Platforms ["Platform Billing Backends"]
-        Mobile["iOS / Android / macOS<br/>(RevenueCat SDK via NativePlatformServices)"]
-        Desktop["Linux / Windows<br/>(Stripe REST Billing via DesktopPlatformServices)"]
+    subgraph Auth ["Authentication Gate (AppAuthGate)"]
+        NativeAuth["iOS / Android / macOS<br/>(Native Firebase Auth via DfSignInSheet)"]
+        DesktopAuth["Linux / Windows<br/>(Firebase REST Auth via DfRestSignInSheet)"]
+        FirebaseUID["Firebase UID (appUserID)"]
+        NativeAuth --> FirebaseUID
+        DesktopAuth --> FirebaseUID
+    end
+
+    subgraph Billing ["Entitlement Source (RevenueCat)"]
+        StoreIAP["Apple App Store / Google Play<br/>(Purchases.logIn(uid))"]
+        WebBilling["RevenueCat Web Purchase Link<br/>(Stripe Payment Gateway)"]
+        RestFetch["GET /v1/subscribers/{uid}<br/>(dfFetchRevenueCatEntitlement)"]
+        FirebaseUID --> StoreIAP
+        FirebaseUID --> WebBilling
+        WebBilling --> RestFetch
     end
 
     subgraph State ["Reactive Entitlement State"]
         RCProv["dfRevenueCatIsProProvider"]
         BillingProv["dfIsPremiumProvider"]
         EffProv["dfEffectivePremiumProvider"]
+        StoreIAP --> RCProv
+        RestFetch --> BillingProv
+        RCProv --> EffProv
+        BillingProv --> EffProv
     end
 
     subgraph Features ["Pro Feature Gates"]
         SyncSvc["FilterSyncService (E2EE CRDT Sync)"]
         OnnxSvc["OnnxSpamScorer & ModelDownloader"]
+        EffProv --> SyncSvc
+        EffProv --> OnnxSvc
     end
-
-    Mobile --> RCProv
-    Desktop --> BillingProv
-    RCProv --> EffProv
-    BillingProv --> EffProv
-    EffProv --> SyncSvc
-    EffProv --> OnnxSvc
 ```
 
 ### Platform Implementations
-- **Native Platforms (`NativePlatformServices` in `app/lib/platform/native_services.dart`)**:
-  Configured with `REVENUECAT_API_KEY_IOS` / `REVENUECAT_API_KEY_ANDROID` (iOS and macOS share the iOS key; the old single `REVENUECAT_API_KEY` still works as a fallback). Listens to `dfRevenueCatIsProProvider` to check the `pro` entitlement.
-- **Desktop Platforms (`DesktopPlatformServices` in `app/lib/platform/desktop_services.dart`)**:
-  Linux and Windows builds bypass mobile store SDKs. `DesktopPlatformServices` provides provider overrides that map `dfEffectivePremiumProvider` to `dfIsPremiumProvider`, querying the web billing checkout status.
-- **"Upgrade to Pro" (`AppCheckout` in `app/lib/ui/premium/app_checkout.dart`)**:
-  The upsell sheet (shared `DfUpsellSheet`, configured in `app_upsell.dart`) closes first, then `AppCheckout.present` runs. On iOS, Android and macOS that opens the RevenueCat paywall through `DfPaywallLauncher` (needs the RevenueCat key for the platform); a build without the key shows a short "could not be opened" message. Windows and Linux have no in-app checkout yet and show a message saying so. Only a `purchased` or `restored` result unlocks anything, and the launch-gate paywall step completes only on those two results.
-- **Application State**:
-  Controllers (such as `VerdictController`) and UI widgets observe `ref.watch(dfEffectivePremiumProvider)` to determine whether Pro capabilities should activate.
+
+#### 1. Native Platforms (`NativePlatformServices` in `app/lib/platform/native_services.dart`)
+- **Initialization**: Configured with `FIREBASE_API_KEY`, `FIREBASE_APP_ID_ANDROID`, `FIREBASE_APP_ID_IOS`, `FIREBASE_PROJECT_ID`, `FIREBASE_MESSAGING_SENDER_ID`, and `FIREBASE_AUTH_DOMAIN` via `firebase_options_from_env.dart`. RevenueCat is configured with `REVENUECAT_API_KEY_IOS` / `REVENUECAT_API_KEY_ANDROID` (with `REVENUECAT_API_KEY` as fallback).
+- **Auth Sync**: Listens to `FirebaseAuth.instance.authStateChanges()`. When a user signs in, it automatically invokes `DfRevenueCat.logIn(user.uid)`. When signed out, it calls `DfRevenueCat.logOut()`.
+- **Entitlement**: Listens to `dfRevenueCatIsProProvider` to check the `pro` entitlement.
+
+#### 2. Desktop Platforms (`DesktopPlatformServices` in `app/lib/platform/desktop_services.dart`)
+- **Initialization**: Configured with `FIREBASE_WEB_API_KEY`, `RC_WEB_PURCHASE_LINK`, and `RC_WEB_PUBLIC_API_KEY`. Native store SDKs and native Firebase bindings are completely bypassed.
+- **REST Auth**: Provides `dfFirebaseRestAuthProvider` initialized with `FirebaseRestAuth(apiKey: webApiKey)`.
+- **REST Entitlement Fetch**: Overrides `dfSubscriptionFetcherProvider` with an implementation that reads the current REST user's `uid` and calls `dfFetchRevenueCatEntitlement(appUserId: uid, publicApiKey: rcWebPublicKey, entitlementId: 'pro')`.
+- **Entitlement**: Maps `dfEffectivePremiumProvider` to `dfIsPremiumProvider`, which caches and periodically re-fetches the subscriber entitlement snapshot from RevenueCat.
+
+#### 3. Upgrade Flow (`AppCheckout` in `app/lib/ui/premium/app_checkout.dart`)
+When the user taps **Upgrade to Pro** (e.g. from the upsell sheet or Settings):
+1. **Configuration Check**: Verifies whether Firebase is configured. In an unconfigured build, it informs the user that checkout is unavailable (`UiStrings.checkoutUnavailable`) and returns `DfPaywallResult.notPresented`.
+2. **Auth Gate (`AppAuthGate.ensureSignedIn`)**: Checks if the user is already authenticated.
+   - If not signed in, presents the platform sign-in sheet (`DfSignInSheet` on native; `DfRestSignInSheet` on desktop).
+   - If the user cancels or dismisses sign-in, `AppCheckout` aborts immediately with `DfPaywallResult.cancelled` without showing any payment UI.
+3. **Checkout Presentation**:
+   - **Native**: Calls `DfRevenueCat.logIn(uid)` to bind the Firebase identity, then displays the RevenueCat paywall via `DfPaywallLauncher.show(context)`. Only `purchased` or `restored` results grant access.
+   - **Desktop**: Calls `DfWebPurchaseLink.open(baseLink: rcWebPurchaseLink, appUserId: uid)` to open the RevenueCat Web Purchase Link (hosted Stripe checkout) in the user's default browser with the percent-encoded UID. It returns `DfPaywallResult.notPresented` — **the client never assumes purchase from a browser launch**. The entitlement is fetched and verified via the REST endpoint when the app resumes or the fetcher runs.
+
+#### 4. Settings Account Tile (`AccountTile` in `app/lib/ui/settings/account_tile.dart`)
+- Hidden completely when Firebase environment defines are missing.
+- When signed in, displays the authenticated email address and a "Sign out" button. Signing out clears auth state, invalidates cached entitlements, and logs out of RevenueCat (`DfRevenueCat.logOut()`).
+- When signed out, displays a "Sign in" button to open the platform's authentication sheet.
+
+#### 5. Application State
+Controllers (such as `VerdictController`) and UI widgets observe `ref.watch(dfEffectivePremiumProvider)` to determine whether Pro capabilities should activate.
 
 ---
 
