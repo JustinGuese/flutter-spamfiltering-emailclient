@@ -39,7 +39,7 @@ dart run flutter_native_splash:create
 ```
 
 Backend URL is a compile-time define: `--dart-define=BACKEND_URL=...` (default: the hosted backend, `https://emailprogram-spamfilter-backend-api.datafortress.cloud`; defined once in `app/lib/api/backend_config.dart`). Pro authentication and billing use compile-time defines passed via `--dart-define-from-file=billing.defines.json` (copy `app/billing.defines.example.json`; gitignored):
-- Native IAP & Firebase (iOS/Android/macOS): `REVENUECAT_API_KEY_IOS`, `REVENUECAT_API_KEY_ANDROID` (public store keys; `REVENUECAT_API_KEY` is fallback), `FIREBASE_API_KEY`, `FIREBASE_APP_ID_ANDROID`, `FIREBASE_APP_ID_IOS`, `FIREBASE_PROJECT_ID`, `FIREBASE_MESSAGING_SENDER_ID`, `FIREBASE_AUTH_DOMAIN`.
+- Native IAP & Firebase (iOS/Android/macOS): `REVENUECAT_API_KEY_IOS`, `REVENUECAT_API_KEY_ANDROID` (public store keys; `REVENUECAT_API_KEY` is fallback), `FIREBASE_API_KEY_ANDROID`, `FIREBASE_API_KEY_IOS` (one key per platform app; `FIREBASE_API_KEY` is the single-key fallback), `FIREBASE_APP_ID_ANDROID`, `FIREBASE_APP_ID_IOS`, `FIREBASE_PROJECT_ID`, `FIREBASE_MESSAGING_SENDER_ID`, `FIREBASE_AUTH_DOMAIN`.
 - Desktop REST auth & Web Billing (Windows/Linux): `FIREBASE_WEB_API_KEY`, `RC_WEB_PURCHASE_LINK`, `RC_WEB_PUBLIC_API_KEY`.
 Without a backend the mail client and local filter still work; community sync and Pro do not. Without Firebase/billing defines the app stays login-free, and Upgrade to Pro shows "checkout unavailable".
 

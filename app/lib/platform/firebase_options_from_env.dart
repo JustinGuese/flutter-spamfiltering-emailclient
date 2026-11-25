@@ -1,7 +1,10 @@
 import 'dart:io' show Platform;
 import 'package:firebase_core/firebase_core.dart';
 
-const _apiKey = String.fromEnvironment('FIREBASE_API_KEY');
+// Firebase issues one API key per platform app. FIREBASE_API_KEY is the single-key fallback.
+const _apiKeyLegacy = String.fromEnvironment('FIREBASE_API_KEY');
+const _apiKeyAndroid = String.fromEnvironment('FIREBASE_API_KEY_ANDROID');
+const _apiKeyIos = String.fromEnvironment('FIREBASE_API_KEY_IOS');
 const _appIdAndroid = String.fromEnvironment('FIREBASE_APP_ID_ANDROID');
 const _appIdIos = String.fromEnvironment('FIREBASE_APP_ID_IOS');
 const _projectId = String.fromEnvironment('FIREBASE_PROJECT_ID');
@@ -15,11 +18,13 @@ bool get isFirebaseConfigured => firebaseOptionsFromEnv() != null;
 /// if required options are not provided.
 FirebaseOptions? firebaseOptionsFromEnv() {
   final appId = Platform.isAndroid ? _appIdAndroid : _appIdIos;
-  if (_apiKey.isEmpty || _projectId.isEmpty || appId.isEmpty) {
+  final platformKey = Platform.isAndroid ? _apiKeyAndroid : _apiKeyIos;
+  final apiKey = platformKey.isNotEmpty ? platformKey : _apiKeyLegacy;
+  if (apiKey.isEmpty || _projectId.isEmpty || appId.isEmpty) {
     return null;
   }
   return FirebaseOptions(
-    apiKey: _apiKey,
+    apiKey: apiKey,
     appId: appId,
     messagingSenderId: _messagingSenderId,
     projectId: _projectId,

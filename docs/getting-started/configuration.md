@@ -14,7 +14,7 @@ The client codebase defines these compile-time environment flags using `String.f
 |---|---|---|---|
 | `BACKEND_URL` | `app/lib/api/backend_config.dart` (used by `api_client.dart` and `report_client.dart`) | `https://emailprogram-spamfilter-backend-api.datafortress.cloud` (the hosted backend) | Base URL for community blocklist sync, threat reports, and ham dispute votes. |
 | `REVENUECAT_API_KEY_IOS` / `REVENUECAT_API_KEY_ANDROID` | `app/lib/platform/native_services.dart` | `""` (empty string) | Public SDK keys (one per store app) for RevenueCat subscription and entitlement management. iOS and macOS share the iOS key. `REVENUECAT_API_KEY` is still read as a single fallback for both. |
-| `FIREBASE_API_KEY` | `app/lib/platform/firebase_options_from_env.dart` | `""` | Firebase Web API key used for native `FirebaseOptions` initialization. |
+| `FIREBASE_API_KEY_ANDROID` / `FIREBASE_API_KEY_IOS` (or the single fallback `FIREBASE_API_KEY`) | `app/lib/platform/firebase_options_from_env.dart` | `""` | Firebase Web API key used for native `FirebaseOptions` initialization. |
 | `FIREBASE_APP_ID_ANDROID` | `app/lib/platform/firebase_options_from_env.dart` | `""` | Firebase application ID for Android (e.g. `1:801199434424:android:...`). |
 | `FIREBASE_APP_ID_IOS` | `app/lib/platform/firebase_options_from_env.dart` | `""` | Firebase application ID for iOS and macOS (e.g. `1:801199434424:ios:...`). |
 | `FIREBASE_PROJECT_ID` | `app/lib/platform/firebase_options_from_env.dart` | `""` | Firebase project ID (e.g. `datafortress-mail`). |
@@ -49,7 +49,7 @@ DataFortress Pro features (multi-device filter sync and premium entitlements) re
 Because the repository is open source, Firebase is initialized from compile-time `--dart-define` parameters rather than committed `google-services.json` or `GoogleService-Info.plist` files.
 
 #### Native Defines (iOS, Android, macOS)
-- `FIREBASE_API_KEY`: The API key for your Firebase project.
+- `FIREBASE_API_KEY_ANDROID` / `FIREBASE_API_KEY_IOS`: the API key of each platform app in your Firebase project (iOS and macOS share the iOS app). `FIREBASE_API_KEY` is read as a single fallback for both.
 - `FIREBASE_APP_ID_ANDROID`: Android App ID (e.g., `1:801199434424:android:...`).
 - `FIREBASE_APP_ID_IOS`: iOS and macOS App ID (e.g., `1:801199434424:ios:...`).
 - `FIREBASE_PROJECT_ID`: The Firebase project identifier (e.g., `datafortress-mail`).
@@ -71,7 +71,8 @@ Copy `app/billing.defines.example.json` to `app/billing.defines.json` (gitignore
 {
   "REVENUECAT_API_KEY_IOS": "appl_your_revenuecat_ios_macos_public_sdk_key",
   "REVENUECAT_API_KEY_ANDROID": "goog_your_revenuecat_android_public_sdk_key",
-  "FIREBASE_API_KEY": "your_firebase_api_key",
+  "FIREBASE_API_KEY_ANDROID": "your_firebase_android_api_key",
+  "FIREBASE_API_KEY_IOS": "your_firebase_ios_api_key",
   "FIREBASE_APP_ID_ANDROID": "1:000000000000:android:0000000000000000000000",
   "FIREBASE_APP_ID_IOS": "1:000000000000:ios:0000000000000000000000",
   "FIREBASE_PROJECT_ID": "your_firebase_project_id",

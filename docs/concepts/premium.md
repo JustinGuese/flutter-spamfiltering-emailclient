@@ -54,7 +54,7 @@ graph TD
 ### Platform Implementations
 
 #### 1. Native Platforms (`NativePlatformServices` in `app/lib/platform/native_services.dart`)
-- **Initialization**: Configured with `FIREBASE_API_KEY`, `FIREBASE_APP_ID_ANDROID`, `FIREBASE_APP_ID_IOS`, `FIREBASE_PROJECT_ID`, `FIREBASE_MESSAGING_SENDER_ID`, and `FIREBASE_AUTH_DOMAIN` via `firebase_options_from_env.dart`. RevenueCat is configured with `REVENUECAT_API_KEY_IOS` / `REVENUECAT_API_KEY_ANDROID` (with `REVENUECAT_API_KEY` as fallback).
+- **Initialization**: Configured with `FIREBASE_API_KEY_ANDROID` / `FIREBASE_API_KEY_IOS`, `FIREBASE_APP_ID_ANDROID`, `FIREBASE_APP_ID_IOS`, `FIREBASE_PROJECT_ID`, `FIREBASE_MESSAGING_SENDER_ID`, and `FIREBASE_AUTH_DOMAIN` via `firebase_options_from_env.dart`. RevenueCat is configured with `REVENUECAT_API_KEY_IOS` / `REVENUECAT_API_KEY_ANDROID` (with `REVENUECAT_API_KEY` as fallback).
 - **Auth Sync**: Listens to `FirebaseAuth.instance.authStateChanges()`. When a user signs in, it automatically invokes `DfRevenueCat.logIn(user.uid)`. When signed out, it calls `DfRevenueCat.logOut()`.
 - **Entitlement**: Listens to `dfRevenueCatIsProProvider` to check the `pro` entitlement.
 
