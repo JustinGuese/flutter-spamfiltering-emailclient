@@ -222,6 +222,10 @@ abstract final class UiStrings {
   static const learnedPrivacy =
       'The filter stores a hash for each word, not the word and not the message. Nothing here can be read back into your mail.';
 
+  static const loadOlder = 'Load older mail';
+  static const loadingOlder = 'Loading older mail…';
+  static const loadOlderFailed = "Couldn't load older mail. Tap to retry.";
+
   static String messageCount(int n) => n == 1 ? '1 message' : '$n messages';
   static String unreadCount(int n) => '$n unread';
 
