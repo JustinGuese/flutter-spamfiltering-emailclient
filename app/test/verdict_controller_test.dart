@@ -80,6 +80,69 @@ void main() {
     expect(db.db.select("SELECT classification_label l FROM messages WHERE id = 'm'").first['l'], 'inbox');
   });
 
+  group('identical copies follow a spam verdict', () {
+    late String body;
+    late VerdictController controller;
+
+    void addMail(String id, {String sender = 's@x.com', String subject = 'Win a prize', String? text, String folder = 'f', int overridden = 0}) {
+      db.db.execute(
+          "INSERT INTO messages (id, account_id, folder_id, uid, subject, sender, sender_domain, recipient_addrs, date, snippet, classification_label) VALUES (?, 'a', ?, ?, ?, ?, 'x.com', '', '2026-11-02T10:00:00', '', 'inbox')",
+          [id, folder, id.hashCode.abs() % 100000 + 10, subject, sender]);
+      db.db.execute("INSERT INTO bodies (message_id, text_body, remote_images_blocked) VALUES (?, ?, 1)", [id, text ?? body]);
+      if (overridden == 1) {
+        db.db.execute("INSERT INTO classifications (message_id, label, spam_score, evidence_json, classified_at, user_overridden) VALUES (?, 'ham', 0.05, '[]', '2026-11-02', 1)", [id]);
+      }
+    }
+
+    String label(String id) => db.db.select('SELECT classification_label l FROM messages WHERE id = ?', [id]).first['l'] as String;
+
+    setUp(() {
+      body = List.generate(300, (i) => 'word$i prize$i').join(' ');
+      controller = VerdictController(db: db, tokenStore: TokenStoreDrift(db), reportClient: _FakeReports());
+    });
+
+    test('marking one of four identical mails as spam filters the other three', () async {
+      for (final id in ['d1', 'd2', 'd3']) {
+        addMail(id);
+      }
+      await controller.applyVerdict(messageId: 'm', newLabel: Label.spam);
+      for (final id in ['m', 'd1', 'd2', 'd3']) {
+        expect(label(id), 'spam', reason: id);
+      }
+    });
+
+    test('different body, subject or sender, a hand-judged copy and mail already in Junk are left alone', () async {
+      db.db.execute("INSERT INTO folders (id, account_id, name, server_path, special_use) VALUES ('junk', 'a', 'Junk', 'Junk', 'junk')");
+      addMail('other-body', text: List.generate(300, (i) => 'unrelated$i text$i').join(' '));
+      addMail('other-subject', subject: 'Something else');
+      addMail('other-sender', sender: 'someone@x.com');
+      addMail('hand-judged', overridden: 1);
+      addMail('in-junk', folder: 'junk');
+      await controller.applyVerdict(messageId: 'm', newLabel: Label.spam);
+      for (final id in ['other-body', 'other-subject', 'other-sender', 'hand-judged', 'in-junk']) {
+        expect(label(id), 'inbox', reason: id);
+      }
+    });
+
+    test('undo restores the copies as well', () async {
+      addMail('d1');
+      addMail('d2');
+      await controller.applyVerdict(messageId: 'm', newLabel: Label.spam);
+      controller.undo();
+      for (final id in ['m', 'd1', 'd2']) {
+        expect(label(id), 'inbox', reason: id);
+      }
+    });
+
+    test('one community report is sent for the whole group', () async {
+      addMail('d1');
+      final reports = _FakeReports();
+      final c = VerdictController(db: db, tokenStore: TokenStoreDrift(db), reportClient: reports);
+      await c.applyVerdict(messageId: 'm', newLabel: Label.spam);
+      expect(reports.reports, 1);
+    });
+  });
+
   test('1. Spam click schedules unsubscribe after delay', () {
     fakeAsync((async) {
       final unsubService = _FakeUnsubscribeService();

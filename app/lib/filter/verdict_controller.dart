@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:df_funnel/df_funnel.dart';
 import 'package:df_firebase_auth/df_firebase_auth.dart';
 import 'package:spam_core/spam_core.dart';
+import 'package:sqlite3/sqlite3.dart' show Row;
 import '../community/matcher.dart';
 import '../community/report_client.dart';
 import '../db/database.dart';
@@ -23,13 +24,26 @@ class UndoRecord {
   final String previousFolderId;
   final Timer timer;
 
+  /// Duplicates that were marked together with [messageId]; undo restores them too.
+  final List<({String messageId, Label previousLabel})> duplicates;
+
   UndoRecord({
     required this.messageId,
     required this.previousLabel,
     required this.newLabel,
     required this.previousFolderId,
     required this.timer,
+    this.duplicates = const [],
   });
+}
+
+/// What [VerdictController._applyOne] changed, so the caller can cascade and undo.
+class _Applied {
+  final Label prevLabel;
+  final String prevFolderId;
+  final Normalized normalized;
+  final int similarCount;
+  const _Applied(this.prevLabel, this.prevFolderId, this.normalized, this.similarCount);
 }
 
 class VerdictController {
@@ -53,6 +67,7 @@ class VerdictController {
   /// messages in a row does not drop all but the last.
   final Map<String, Timer> _pendingUnsubscribes = {};
   bool _isExecutingUndo = false;
+  Future<void> _imapQueue = Future.value();
 
   VerdictController({
     required this.db,
@@ -77,26 +92,57 @@ class VerdictController {
     required Label newLabel,
     void Function(String messageId, Label label, int similarCount)? onStamp,
   }) async {
+    final applied = _applyOne(messageId, newLabel, onStamp: onStamp);
+    if (applied == null) return 0;
+
+    // Marking one copy of a mail as spam also filters its identical copies in the
+    // inbox (the same mail is often delivered several times). Never on undo, which
+    // restores the copies from the undo record instead.
+    final duplicates = <({String messageId, Label previousLabel})>[];
+    if (newLabel == Label.spam && !_isExecutingUndo) {
+      for (final id in _findDuplicates(messageId, applied.normalized)) {
+        final dup = _applyOne(id, Label.spam);
+        if (dup != null) duplicates.add((messageId: id, previousLabel: dup.prevLabel));
+      }
+    }
+
+    _handleCommunityReporting(applied.normalized, applied.prevLabel, newLabel);
+    _triggerPremiumSyncDebounced();
+    _handleUnsubscribeScheduling(messageId, newLabel, isUndo: _isExecutingUndo);
+
+    _activeUndo?.timer.cancel();
+    _activeUndo = UndoRecord(
+      messageId: messageId,
+      previousLabel: applied.prevLabel,
+      newLabel: newLabel,
+      previousFolderId: applied.prevFolderId,
+      timer: Timer(const Duration(seconds: 8), () => _activeUndo = null),
+      duplicates: duplicates,
+    );
+    return applied.similarCount;
+  }
+
+  /// Writes one message's verdict (labels, token training, IMAP move). Returns null
+  /// when the message is gone or already has [newLabel].
+  _Applied? _applyOne(
+    String messageId,
+    Label newLabel, {
+    void Function(String messageId, Label label, int similarCount)? onStamp,
+  }) {
     final row = db.db.select('''
       SELECT m.id, m.account_id, m.uid, m.folder_id, m.subject, m.sender, m.sender_domain,
              m.recipient_addrs, m.classification_label, b.text_body, b.html_body
       FROM messages m LEFT JOIN bodies b ON m.id = b.message_id WHERE m.id = ?
     ''', [messageId]).firstOrNull;
-    if (row == null) return 0;
+    if (row == null) return null;
 
     final prevLabel = Label.values.byName((row['classification_label'] as String?) ?? 'inbox');
     final prevFolderId = row['folder_id'] as String;
     final accountId = row['account_id'] as String;
     final uid = row['uid'] as int;
-    if (prevLabel == newLabel) return 0;
+    if (prevLabel == newLabel) return null;
 
-    final msg = Message(
-      headers: {'From': [row['sender'] as String], 'Subject': [row['subject'] as String]},
-      textBody: (row['text_body'] as String?) ?? '',
-      htmlBody: row['html_body'] as String?,
-      recipientAddrs: ((row['recipient_addrs'] as String?) ?? '').split(',').map((s) => s.trim()).toList(),
-    );
-    final normalized = Normalizer.normalize(msg);
+    final normalized = Normalizer.normalize(_toMessage(row));
     final score = newLabel == Label.spam ? 0.95 : 0.05;
 
     // One transaction for the whole verdict. A message has hundreds of tokens and
@@ -133,21 +179,55 @@ class VerdictController {
             0;
     onStamp?.call(messageId, newLabel, similarCount);
 
-    _applyImapEffect(messageId, accountId, uid, prevFolderId, newLabel);
-    _handleCommunityReporting(normalized, prevLabel, newLabel);
-    _triggerPremiumSyncDebounced();
+    // Serialised: duplicates must not open parallel IMAP connections.
+    _imapQueue = _imapQueue.then((_) => _applyImapEffect(messageId, accountId, uid, prevFolderId, newLabel));
+    return _Applied(prevLabel, prevFolderId, normalized, similarCount);
+  }
 
-    _handleUnsubscribeScheduling(messageId, newLabel, isUndo: _isExecutingUndo);
+  Message _toMessage(Row row) => Message(
+        headers: {'From': [row['sender'] as String], 'Subject': [row['subject'] as String]},
+        textBody: (row['text_body'] as String?) ?? '',
+        htmlBody: row['html_body'] as String?,
+        recipientAddrs: ((row['recipient_addrs'] as String?) ?? '').split(',').map((s) => s.trim()).toList(),
+      );
 
-    _activeUndo?.timer.cancel();
-    _activeUndo = UndoRecord(
-      messageId: messageId,
-      previousLabel: prevLabel,
-      newLabel: newLabel,
-      previousFolderId: prevFolderId,
-      timer: Timer(const Duration(seconds: 8), () => _activeUndo = null),
-    );
-    return similarCount;
+  /// Ids of other copies of [normalized]'s mail that should follow it into Junk: same
+  /// account, same sender address, same subject and the same body (identical cleaned
+  /// text, or at least 6 of 8 MinHash bands). Skips mail already in Junk/Trash/Sent,
+  /// mail already spam, and anything the user judged by hand (`user_overridden`).
+  List<String> _findDuplicates(String messageId, Normalized normalized) {
+    final origin = db.db.select(
+        'SELECT account_id, sender, subject FROM messages WHERE id = ?', [messageId]).firstOrNull;
+    if (origin == null) return const [];
+    final candidates = db.db.select('''
+      SELECT m.id, m.sender, m.subject, m.recipient_addrs, b.text_body, b.html_body
+      FROM messages m
+      LEFT JOIN bodies b ON m.id = b.message_id
+      LEFT JOIN folders f ON f.id = m.folder_id
+      LEFT JOIN classifications c ON c.message_id = m.id
+      WHERE m.account_id = ? AND m.id != ?
+        AND LOWER(TRIM(m.sender)) = LOWER(TRIM(?)) AND LOWER(TRIM(m.subject)) = LOWER(TRIM(?))
+        AND m.classification_label != 'spam'
+        AND COALESCE(c.user_overridden, 0) = 0
+        AND COALESCE(f.special_use, '') NOT IN ('junk', 'trash', 'sent', 'drafts')
+      LIMIT 50
+    ''', [origin['account_id'], messageId, origin['sender'], origin['subject']]);
+    if (candidates.isEmpty) return const [];
+
+    final bands = Fingerprinter.fingerprints(normalized).bodyBands.toSet();
+    final ids = <String>[];
+    for (final row in candidates) {
+      final other = Normalizer.normalize(_toMessage(row));
+      if (other.cleanedText == normalized.cleanedText) {
+        ids.add(row['id'] as String);
+        continue;
+      }
+      final otherBands = Fingerprinter.fingerprints(other).bodyBands;
+      if (bands.isNotEmpty && otherBands.isNotEmpty && otherBands.where(bands.contains).length >= 6) {
+        ids.add(row['id'] as String);
+      }
+    }
+    return ids;
   }
 
   void _handleUnsubscribeScheduling(String messageId, Label newLabel, {required bool isUndo}) {
@@ -287,6 +367,9 @@ class VerdictController {
     _isExecutingUndo = true;
     try {
       applyVerdict(messageId: record.messageId, newLabel: record.previousLabel);
+      for (final dup in record.duplicates) {
+        _applyOne(dup.messageId, dup.previousLabel);
+      }
     } finally {
       _isExecutingUndo = false;
     }

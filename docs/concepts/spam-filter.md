@@ -117,6 +117,8 @@ flowchart TD
   Flag updates (`$Spam`, `$NotSpam`) and IMAP `MOVE` commands execute against the mail server. If the device is offline, operations are queued in `pending_imap_actions` for replay.
 - **8-Second Undo Grace Window**:
   An active `UndoRecord` holds an undo timer (8 seconds). If the user accidentally reclassifies a message, clicking **Undo** immediately reverts token adjustments and restores the message to its prior folder.
+- **Identical copies follow the verdict**:
+  When the same mail is delivered several times, marking one copy as spam also moves the other copies to Junk. A copy qualifies when it is in the same account, has the same sender address and subject (case-insensitive), and has the same body: identical normalized text, or at least 6 of the 8 MinHash body bands equal. Mail already in Junk, Trash, Sent or Drafts, mail already labelled spam, and mail you judged by hand (`classifications.user_overridden = 1`) are never touched. **Undo** restores every copy. The copies are trained on like any spam verdict, but only one community report and one auto-unsubscribe is made for the group. Their IMAP moves run one after another on a single queue. Copies that arrive later are not covered by this; the filter catches them through the token counts and the community blocklist.
 - **Auto-Unsubscribe on Spam (`app/lib/mail/unsubscribe_service.dart`)**:
   When a user marks an email as spam, `VerdictController` schedules an automatic unsubscribe after a 10-second delay (buffering the 8-second undo window):
   - **Cancel on Undo**: Clicking **Undo** or assigning any non-spam verdict cancels the pending unsubscribe timer. An undo of a ham verdict that reverts to spam does not schedule an unsubscribe.
