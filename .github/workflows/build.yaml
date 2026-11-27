@@ -172,8 +172,22 @@ jobs:
 
     - run: flutter pub get
 
+    # Compile-time defines (Firebase, RevenueCat, OAuth client IDs) come from the
+    # BILLING_DEFINES_JSON / OAUTH_DEFINES_JSON repo secrets: each holds the whole
+    # gitignored app/*.defines.json file. Passed via env so the JSON is never
+    # interpolated into the script. bash on every runner (Windows defaults to pwsh).
+    - name: Write defines files
+      shell: bash
+      env:
+        BILLING_DEFINES_JSON: ${{ secrets.BILLING_DEFINES_JSON }}
+        OAUTH_DEFINES_JSON: ${{ secrets.OAUTH_DEFINES_JSON }}
+      run: |
+        printf '%s' "${BILLING_DEFINES_JSON:-{\}}" > billing.defines.json
+        printf '%s' "${OAUTH_DEFINES_JSON:-{\}}" > oauth.defines.json
+
     - name: Build ${{ matrix.target }}
-      run: ${{ matrix.build_cmd }}
+      shell: bash
+      run: ${{ matrix.build_cmd }} --dart-define-from-file=billing.defines.json --dart-define-from-file=oauth.defines.json
 
     # Package each platform into a single release-ready file under dist/
     - name: Package android

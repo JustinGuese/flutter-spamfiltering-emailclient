@@ -89,6 +89,8 @@ flutter run -d macos --dart-define-from-file=billing.defines.json
 flutter run -d linux --dart-define-from-file=billing.defines.json
 ```
 
+Release builds in CI (`.github/workflows/build.yaml`, tag builds) write this file from the `BILLING_DEFINES_JSON` repository secret, which holds the whole JSON file, and pass it with `--dart-define-from-file`. Update the secret with `gh secret set BILLING_DEFINES_JSON < app/billing.defines.json`.
+
 #### Behavior When Unconfigured
 - If Firebase defines are missing, the app functions normally without errors.
 - The Settings → Account tile is hidden.
@@ -112,7 +114,7 @@ flutter run -d linux --dart-define-from-file=billing.defines.json
 
   On iOS and macOS the reversed-client-ID scheme must also be listed under `CFBundleURLSchemes` in `Info.plist`; see [Platform notes](../contributing/platform-notes.md#oauth-sign-in-and-notifications-per-platform).
 - **Provider-side requirements** (outside this repo): Google classifies `https://mail.google.com/` as a restricted scope, so a public release needs Google's app verification; until then the consent screen is limited to test users and refresh tokens are short-lived. Many Microsoft work or school tenants disable IMAP or SMTP AUTH, in which case only personal outlook.com, hotmail and live accounts connect.
-- **Local values**: copy `app/oauth.defines.example.json` to `app/oauth.defines.json` (gitignored, never commit it) and fill in your own client IDs. Build with `flutter run --dart-define-from-file=oauth.defines.json`. In CI, pass the IDs and `GOOGLE_OAUTH_CLIENT_SECRET_DESKTOP` as `--dart-define` values from repository secrets. Android debug builds need a client registered with the debug keystore's SHA-1 in `GOOGLE_OAUTH_CLIENT_ID_ANDROID`.  How to register the clients: [OAuth Setup](../contributing/oauth-setup.md).
+- **Local values**: copy `app/oauth.defines.example.json` to `app/oauth.defines.json` (gitignored, never commit it) and fill in your own client IDs. Build with `flutter run --dart-define-from-file=oauth.defines.json`. In CI, the tag build writes this file from the `OAUTH_DEFINES_JSON` repository secret (the whole JSON file) and passes it with `--dart-define-from-file`. Android debug builds need a client registered with the debug keystore's SHA-1 in `GOOGLE_OAUTH_CLIENT_ID_ANDROID`.  How to register the clients: [OAuth Setup](../contributing/oauth-setup.md).
 - **Customization**:
   ```bash
   flutter run -d linux \
