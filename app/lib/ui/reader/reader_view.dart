@@ -13,6 +13,8 @@ import '../../mail/unsubscribe_service.dart';
 import '../../app/log.dart';
 import '../../app/unsubscribe_strings.dart';
 import 'attachment_strip.dart';
+import 'phishing_banner.dart';
+import 'sender_actions.dart';
 import '../../mail/html_to_text.dart';
 import '../../mail/reply_builder.dart';
 import '../compose/compose_view.dart';
@@ -332,6 +334,17 @@ class _ReaderViewState extends ConsumerState<ReaderView> {
                             const SizedBox(height: 20),
                             AttachmentStrip(key: ValueKey('att_$id'), messageId: id),
                           ],
+                          if (verdict?.isPhishing == true) ...[
+                            const SizedBox(height: 20),
+                            PhishingBanner(verdict: verdict!),
+                          ],
+                          const SizedBox(height: 14),
+                          SenderActions(
+                            messageId: id,
+                            sender: who.email,
+                            senderDomain: domain,
+                            currentLabel: currentLabel,
+                          ),
                           SizedBox(height: narrow ? 20 : 24),
                           Divider(height: 1, color: palette.hairline),
                           SizedBox(height: narrow ? 24 : 32),

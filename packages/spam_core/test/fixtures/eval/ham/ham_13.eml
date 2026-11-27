@@ -1,0 +1,6 @@
+From: "Seaside Inn Reservations" <frontdesk@seasideinn.example.com>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Hotel Reservation Confirmation #RES-10394
+
+We look forward to welcoming you to Seaside Inn! Check-in: Friday, Dec 2 at 3:00 PM. Check-out: Sunday, Dec 4 at 11:00 AM. Room: Ocean View King. High-speed WiFi and hot breakfast included.

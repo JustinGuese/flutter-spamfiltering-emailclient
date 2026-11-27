@@ -1,0 +1,6 @@
+From: "SkyHigh Airlines" <reservations@airline.example.com>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Flight Confirmation and E-Ticket - Reference #XK92PL
+
+Thank you for booking with SkyHigh Airlines! Your round-trip flight from SFO to JFK is confirmed for Dec 10. Passenger: Jane Doe. Seat: 14A. Check in online 24 hours prior to scheduled departure time.

@@ -1,0 +1,6 @@
+From: "Buchhandlung Leseecke" <bestellung@leseecke.example.de>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Ihre Buchbestellung #DE-901824 ist eingegangen
+
+Sehr geehrte Kundin, sehr geehrter Kunde, vielen Dank fuer Ihre Bestellung bei unserer Buchhandlung. Wir haben Ihren Auftrag erhalten und die Buecher fuer den Versand vorbereitet. Die Rechnung liegt bei. Mit freundlichen Gruessen, Ihr Kundenservice

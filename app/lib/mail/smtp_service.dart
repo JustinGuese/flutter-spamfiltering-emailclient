@@ -5,6 +5,7 @@ import 'mail_auth.dart';
 import 'account_repository.dart';
 import 'imap_service.dart';
 import '../app/log.dart';
+import '../db/database.dart';
 
 /// Escaped, line-break-preserving HTML twin of a plain-text body. Quoted text
 /// from received mail ends up in here, so it must never be passed through raw.
@@ -52,8 +53,9 @@ MimeMessage buildOutgoingMessage({
 
 class SmtpService {
   final SmtpClient client;
+  final AppDatabase? db;
 
-  SmtpService({SmtpClient? client})
+  SmtpService({SmtpClient? client, this.db})
       : client = client ?? SmtpClient('datafortress.client', isLogEnabled: false);
 
   Future<void> sendMail({
@@ -107,6 +109,20 @@ class SmtpService {
       }
     }
 
+    // Upsert To/Cc recipients into contacts with trust_level = 1
+    if (db != null) {
+      final recipients = [...to, ...cc];
+      for (final raw in recipients) {
+        final email = _extractAddress(raw).toLowerCase();
+        if (email.isNotEmpty && email.contains('@')) {
+          db!.db.execute('''
+            INSERT OR IGNORE INTO contacts (id, email, trust_level)
+            VALUES (?, ?, 1)
+          ''', [email, email]);
+        }
+      }
+    }
+
     // APPEND to Sent mailbox if server does not automatically append
     if (imapForSentAppend != null && sentFolderPath != null) {
       try {
@@ -120,5 +136,12 @@ class SmtpService {
         // Fallback: ignore append failures if server auto-saves
       }
     }
+  }
+
+  static String _extractAddress(String input) {
+    final trimmed = input.trim();
+    final match = RegExp(r'<([^>]+)>').firstMatch(trimmed);
+    if (match != null) return match.group(1)!.trim();
+    return trimmed;
   }
 }

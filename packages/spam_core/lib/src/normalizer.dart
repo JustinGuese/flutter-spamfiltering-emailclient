@@ -20,6 +20,11 @@ class Normalizer {
   static final RegExp _emailExtractPattern = RegExp(
     r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',
   );
+  static final RegExp _hiddenStyleTagPattern = RegExp(
+    r'''<([a-zA-Z0-9]+)[^>]*style=["'][^"']*(?:display\s*:\s*none|visibility\s*:\s*hidden|font-size\s*:\s*(?:0(?:px)?|1px))[^"']*["'][^>]*>[\s\S]*?<\/\1>''',
+    caseSensitive: false,
+  );
+  static final RegExp _zeroWidthStripPattern = RegExp(r'[\u200B\u200C\u200D\uFEFF]');
 
   /// Normalizes a message: strips recipient name/address + greeting,
   /// folds case/whitespace, and extracts URLs and sender domain.
@@ -47,6 +52,26 @@ class Normalizer {
     // 5. Lowercase and fold whitespace
     cleaned = _foldWhitespace(cleaned.toLowerCase());
 
+    // Compute tokenText with hidden content and zero-width chars removed (anti-poisoning)
+    String tokenRaw;
+    if (message.htmlBody != null && _hiddenStyleTagPattern.hasMatch(message.htmlBody!)) {
+      final html = message.htmlBody!.replaceAll(_hiddenStyleTagPattern, ' ');
+      tokenRaw = _stripHtml(html);
+    } else if (message.textBody.trim().isEmpty && message.htmlBody != null) {
+      tokenRaw = _stripHtml(message.htmlBody!);
+    } else {
+      tokenRaw = message.textBody.replaceAll(_hiddenStyleTagPattern, ' ');
+    }
+    tokenRaw = tokenRaw.replaceAll(_zeroWidthStripPattern, '');
+    var tokenCleaned = tokenRaw.replaceAll(_greetingPattern, '');
+    for (final token in recipientTokens) {
+      if (token.length >= 3) {
+        final escaped = RegExp.escape(token);
+        tokenCleaned = tokenCleaned.replaceAll(RegExp(escaped, caseSensitive: false), ' ');
+      }
+    }
+    tokenCleaned = _foldWhitespace(tokenCleaned.toLowerCase());
+
     // 6. Extract URLs (both from text and HTML)
     final urls = <String>{};
     for (final match in _urlPattern.allMatches(rawText)) {
@@ -73,6 +98,7 @@ class Normalizer {
     return Normalized(
       original: message,
       cleanedText: cleaned,
+      tokenText: tokenCleaned,
       cleanedHtml: message.htmlBody,
       extractedUrls: urls.toList(),
       senderDomain: senderDomain,
@@ -156,7 +182,10 @@ class Normalizer {
     final fromHeader = message.firstHeader('from') ?? message.firstHeader('return-path');
     if (fromHeader == null) return null;
 
-    final match = _emailExtractPattern.firstMatch(fromHeader);
+    final angleMatch = RegExp(r'<([^>]+)>').firstMatch(fromHeader);
+    final textToMatch = angleMatch != null ? angleMatch.group(1)! : fromHeader;
+
+    final match = _emailExtractPattern.firstMatch(textToMatch);
     if (match != null) {
       final email = match.group(0)!;
       final parts = email.split('@');

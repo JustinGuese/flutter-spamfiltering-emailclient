@@ -1,0 +1,6 @@
+From: "Account Service" <billing@example.org>
+To: <user@example.org>
+Subject: Review suspicious login attempt
+
+A new device logged into your profile. If this was not you, visit our secure verification center:
+<a href="https://evil-credential-harvesting-site.com/signin">https://paypal.com/signin</a> to protect your account.

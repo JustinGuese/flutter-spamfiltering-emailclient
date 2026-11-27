@@ -132,7 +132,8 @@ ProtectionStats computeProtection(AppDatabase db, {int recentLimit = 200}) {
     filterCaught: filterCaught,
     communityOnly: communityOnly,
     corrections: corrections,
-    learnedTokens: count('SELECT COUNT(*) FROM tokens'),
+    // The bundled seed prior is not something this device learned.
+    learnedTokens: count('SELECT COUNT(*) FROM tokens WHERE hash NOT IN (SELECT hash FROM prior_tokens)'),
     spamLeaning: count('SELECT COUNT(*) FROM tokens WHERE spam > ham AND spam > newsletter AND spam > inbox'),
     hamLeaning: count('SELECT COUNT(*) FROM tokens WHERE ham + inbox > spam'),
     blocklistEntries: count('SELECT COUNT(*) FROM blocklist_entries'),

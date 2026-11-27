@@ -1,0 +1,16 @@
+From: "Global Invoicing Service" <accounts@example.org>
+To: <user@example.org>
+Subject: Outstanding Past-Due Invoice #89214 Copy Attached
+Content-Type: multipart/mixed; boundary="boundary123"
+
+--boundary123
+Content-Type: text/plain; charset=utf-8
+
+Please find attached your overdue invoice details for urgent settlement.
+
+--boundary123
+Content-Type: application/octet-stream; name="Invoice_Scan_Nov2026.pdf.exe"
+Content-Disposition: attachment; filename="Invoice_Scan_Nov2026.pdf.exe"
+
+BASE64_BYTES_DUMMY
+--boundary123--

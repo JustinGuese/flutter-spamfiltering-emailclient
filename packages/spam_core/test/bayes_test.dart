@@ -66,5 +66,50 @@ void main() {
       expect(resultHam.score, lessThan(0.10));
       expect(resultHam.isUnsure, isFalse);
     });
+
+    test('class-size normalisation works with message totals', () async {
+      final tokenHash = Tokenizer.hashToken('the');
+
+      // 100 spam msgs trained on token "the" (s=100) and 100 ham msgs with "the" (h=100) -> neutral
+      final store1 = MemoryTokenStore(null, 100, 100);
+      await store1.apply(tokenHash, Label.spam, 100);
+      await store1.apply(tokenHash, Label.ham, 100);
+
+      final result1 = await BayesClassifier.scoreTokens(
+        [tokenHash],
+        store1,
+        totalSpamMessages: 100,
+        totalHamMessages: 100,
+      );
+      expect(result1.score, equals(0.5));
+      expect(result1.tokenCount, equals(0)); // |0.5 - 0.5| < 0.1
+
+      // With totals spam=10, ham=1000 and counts s=10, h=10 -> spam-leaning
+      final store2 = MemoryTokenStore(null, 10, 1000);
+      await store2.apply(tokenHash, Label.spam, 10);
+      await store2.apply(tokenHash, Label.ham, 10);
+
+      final result2 = await BayesClassifier.scoreTokens(
+        [tokenHash],
+        store2,
+        totalSpamMessages: 10,
+        totalHamMessages: 1000,
+      );
+      expect(result2.score, greaterThan(0.80));
+      expect(result2.tokenCount, equals(1));
+    });
+
+    test('significant tokens limit to 150 most extreme and n cap', () async {
+      final store = MemoryTokenStore();
+      final hashes = <int>[];
+      for (var i = 1; i <= 200; i++) {
+        final h = 10000 + i;
+        hashes.add(h);
+        await store.apply(h, Label.spam, 10 + i);
+        await store.apply(h, Label.ham, 0);
+      }
+      final result = await BayesClassifier.scoreTokens(hashes, store);
+      expect(result.tokenCount, equals(150));
+    });
   });
 }

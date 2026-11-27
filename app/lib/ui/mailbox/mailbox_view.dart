@@ -6,6 +6,7 @@ import 'package:spam_core/spam_core.dart';
 import '../../app/strings.dart';
 import '../../platform/platform_services.dart';
 import '../../db/database.dart';
+import '../../filter/screener.dart';
 import '../../filter/verdict_controller.dart';
 import '../../mail/sync_engine.dart';
 import '../../app/log.dart';
@@ -15,7 +16,7 @@ import '../common/app_parts.dart';
 import '../common/mail_queries.dart';
 import 'message_row.dart';
 
-enum _ListFilter { all, inbox, newsletters, spam }
+enum _ListFilter { all, inbox, newsletters, spam, review, newSenders }
 
 class MailboxView extends ConsumerStatefulWidget {
   final ValueChanged<String>? onSelectMessage;
@@ -88,17 +89,59 @@ class _MailboxViewState extends ConsumerState<MailboxView> {
       };
       counts[f] = counts[f]! + n;
     }
+
+    final screener = ref.watch(screenerProvider);
+    final screenerMode = ref.watch(screenerModeProvider);
+    final newSenderWhere = screener.newSenderWhereClause(tableAlias: 'messages');
+
+    // Review count: classification_label = 'spam' AND spam_score < 0.9 in non-Junk folder, not user-overridden
+    const reviewWhereSql =
+        "classification_label = 'spam' AND spam_score < 0.9 "
+        "AND folder_id NOT IN (SELECT id FROM folders WHERE LOWER(COALESCE(special_use, '')) = 'junk') "
+        "AND NOT EXISTS (SELECT 1 FROM classifications c WHERE c.message_id = messages.id AND c.user_overridden = 1)";
+    final reviewRows = db.db.select(
+      'SELECT COUNT(*) AS n FROM messages WHERE $folderWhere AND $reviewWhereSql',
+      folderParams,
+    );
+    counts[_ListFilter.review] = (reviewRows.firstOrNull?['n'] as int?) ?? 0;
+
+    // New senders count
+    final newSenderRows = db.db.select(
+      'SELECT COUNT(*) AS n FROM messages WHERE $folderWhere AND ${newSenderWhere.sql}',
+      [...folderParams, ...newSenderWhere.args],
+    );
+    counts[_ListFilter.newSenders] = (newSenderRows.firstOrNull?['n'] as int?) ?? 0;
+
+    if (screenerMode == 'strict') {
+      final strictInboxRows = db.db.select(
+        "SELECT COUNT(*) AS n FROM messages WHERE $folderWhere "
+        "AND COALESCE(classification_label, 'inbox') IN ('inbox', 'ham') "
+        "AND NOT (${newSenderWhere.sql})",
+        [...folderParams, ...newSenderWhere.args],
+      );
+      counts[_ListFilter.inbox] = (strictInboxRows.firstOrNull?['n'] as int?) ?? 0;
+    }
+
     final matching = counts[_filter]!;
 
     final labelWhere = switch (_filter) {
       _ListFilter.all => '',
-      _ListFilter.inbox => " AND COALESCE(classification_label, 'inbox') IN ('inbox', 'ham')",
+      _ListFilter.inbox => screenerMode == 'strict'
+          ? " AND COALESCE(classification_label, 'inbox') IN ('inbox', 'ham') AND NOT (${newSenderWhere.sql})"
+          : " AND COALESCE(classification_label, 'inbox') IN ('inbox', 'ham')",
       _ListFilter.newsletters => " AND classification_label = 'newsletter'",
       _ListFilter.spam => " AND classification_label = 'spam'",
+      _ListFilter.review => " AND $reviewWhereSql",
+      _ListFilter.newSenders => " AND ${newSenderWhere.sql}",
+    };
+    final extraArgs = switch (_filter) {
+      _ListFilter.inbox when screenerMode == 'strict' => newSenderWhere.args,
+      _ListFilter.newSenders => newSenderWhere.args,
+      _ => const <Object?>[],
     };
     final rows = db.db.select(
       'SELECT * FROM messages WHERE $folderWhere$labelWhere ORDER BY date DESC LIMIT ?',
-      [...folderParams, _limit],
+      [...folderParams, ...extraArgs, _limit],
     );
 
     final messages = rows.map((r) => MessageSummary(
@@ -191,6 +234,8 @@ class _MailboxViewState extends ConsumerState<MailboxView> {
                           _ListFilter.inbox => UiStrings.filterInbox,
                           _ListFilter.newsletters => UiStrings.filterNewsletters,
                           _ListFilter.spam => UiStrings.filterSpam,
+                          _ListFilter.review => UiStrings.filterReview,
+                          _ListFilter.newSenders => UiStrings.filterNewSenders,
                         },
                         count: counts[f]!,
                         selected: _filter == f,
@@ -211,9 +256,19 @@ class _MailboxViewState extends ConsumerState<MailboxView> {
                   ? LedgerPaper(
                       child: Center(
                         child: Column(mainAxisSize: MainAxisSize.min, children: [
-                          Text(UiStrings.emptyListTitle, style: AppType.display(palette.textTertiary, size: 30, weight: 500, italic: true)),
-                          const SizedBox(height: 6),
-                          Text(UiStrings.emptyListBody, style: AppType.ui(palette.textTertiary, size: 13)),
+                          Text(
+                            switch (_filter) {
+                              _ListFilter.review => UiStrings.reviewEmpty,
+                              _ListFilter.newSenders => UiStrings.newSendersEmpty,
+                              _ => UiStrings.emptyListTitle,
+                            },
+                            style: AppType.display(palette.textTertiary, size: 28, weight: 500, italic: true),
+                            textAlign: TextAlign.center,
+                          ),
+                          if (_filter != _ListFilter.review && _filter != _ListFilter.newSenders) ...[
+                            const SizedBox(height: 6),
+                            Text(UiStrings.emptyListBody, style: AppType.ui(palette.textTertiary, size: 13)),
+                          ],
                         ]),
                       ),
                     )
@@ -234,10 +289,23 @@ class _MailboxViewState extends ConsumerState<MailboxView> {
                             );
                           }
                           final msg = messages[index];
+                          final isReview = _filter == _ListFilter.review;
                           return MessageRow(
                             message: msg,
                             isSelected: msg.id == selectedMessageId,
                             isComfortable: isComfortable,
+                            onMarkSpam: isReview
+                                ? () => ref.read(verdictControllerProvider).applyVerdict(
+                                      messageId: msg.id,
+                                      newLabel: Label.spam,
+                                    )
+                                : null,
+                            onMarkNotSpam: isReview
+                                ? () => ref.read(verdictControllerProvider).applyVerdict(
+                                      messageId: msg.id,
+                                      newLabel: Label.ham,
+                                    )
+                                : null,
                             onTap: () {
                               setState(() => _selectedIndex = index);
                               ref.read(selectedMessageIdProvider.notifier).set(msg.id);

@@ -1,0 +1,6 @@
+From: "Tom Green" <tom@example.com>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Found your blue jacket in my car after our trip
+
+Hey! I noticed you left your blue rain jacket in my backseat after our weekend drive. I can drop it off at your place tomorrow evening on my way home from work. Let me know!

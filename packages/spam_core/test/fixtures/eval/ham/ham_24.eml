@@ -1,0 +1,6 @@
+From: "Markus Weber" <markus@example.de>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Unterlagen zur Vereinbarung ueber Softwareberatung
+
+Guten Tag, bezugnehmend auf unser Telefonat uebersende ich Ihnen den Entwurf unserer Beratungsvereinbarung. Bitte schauen Sie sich die Abschnitte zur Verguetung und Geheimhaltung an. Vielen Dank fuer die gute Zusammenarbeit.

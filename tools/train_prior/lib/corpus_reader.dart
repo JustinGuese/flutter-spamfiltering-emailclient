@@ -1,11 +1,19 @@
+import 'dart:convert';
 import 'dart:io';
+import 'package:enough_mail/enough_mail.dart';
 import 'package:spam_core/spam_core.dart';
 
 /// Reads RFC822 / EML email messages from disk.
+///
+/// Messages are MIME-decoded with enough_mail, the parser the app's sync uses,
+/// so the prior is trained on the same text the app classifies (decoded
+/// text/plain, else the HTML part) instead of raw base64 and multipart markup.
 class CorpusReader {
   /// Reads a single email file and parses it into a Message.
   static Message readFile(File file) {
-    final raw = file.readAsStringSync();
+    final bytes = file.readAsBytesSync();
+    // Corpus mail is often Latin-1; never drop a message over its encoding.
+    final raw = utf8.decode(bytes, allowMalformed: true);
     return parseRawEmail(raw);
   }
 
@@ -14,8 +22,8 @@ class CorpusReader {
     if (!dir.existsSync()) return const [];
 
     final messages = <Message>[];
-    for (final entity in dir.listSync(recursive: true)) {
-      if (entity is File && !entity.path.endsWith('.DS_Store')) {
+    for (final entity in dir.listSync(recursive: true, followLinks: true)) {
+      if (entity is File && !entity.path.endsWith('.DS_Store') && !entity.path.endsWith('/cmds')) {
         try {
           messages.add(readFile(entity));
         } catch (_) {
@@ -26,59 +34,35 @@ class CorpusReader {
     return messages;
   }
 
-  /// Parses raw email string into headers and body.
+  /// Parses a raw RFC 822 message the way the app's sync builds its input.
   static Message parseRawEmail(String raw) {
+    final mime = MimeMessage.parseFromText(raw);
+
     final headers = <String, List<String>>{};
-    final lines = raw.split(RegExp(r'\r?\n'));
+    for (final h in mime.headers ?? const <Header>[]) {
+      final value = h.value;
+      if (value != null) headers.putIfAbsent(h.name, () => []).add(value);
+    }
+    final subject = mime.decodeSubject();
+    if (subject != null) headers['Subject'] = [subject];
 
-    var headerEndIndex = -1;
-    String? currentHeaderName;
-    final currentHeaderValue = StringBuffer();
+    final html = mime.decodeTextHtmlPart();
+    final text = (mime.decodeTextPlainPart() ?? '').trim();
 
-    for (var i = 0; i < lines.length; i++) {
-      final line = lines[i];
-
-      // Empty line marks end of headers
-      if (line.trim().isEmpty) {
-        headerEndIndex = i;
-        if (currentHeaderName != null) {
-          headers.putIfAbsent(currentHeaderName.toLowerCase(), () => []).add(currentHeaderValue.toString().trim());
-        }
-        break;
-      }
-
-      // Continuation line (starts with space or tab)
-      if ((line.startsWith(' ') || line.startsWith('\t')) && currentHeaderName != null) {
-        currentHeaderValue.write(' ${line.trim()}');
-        continue;
-      }
-
-      // New header line
-      final colonIndex = line.indexOf(':');
-      if (colonIndex != -1) {
-        if (currentHeaderName != null) {
-          headers.putIfAbsent(currentHeaderName.toLowerCase(), () => []).add(currentHeaderValue.toString().trim());
-          currentHeaderValue.clear();
-        }
-        currentHeaderName = line.substring(0, colonIndex).trim();
-        currentHeaderValue.write(line.substring(colonIndex + 1).trim());
-      }
+    final attachmentNames = <String>[];
+    for (final info in mime.findContentInfo(disposition: ContentDisposition.attachment)) {
+      final name = info.fileName;
+      if (name != null && name.isNotEmpty) attachmentNames.add(name);
     }
 
-    final body = (headerEndIndex != -1 && headerEndIndex < lines.length - 1)
-        ? lines.sublist(headerEndIndex + 1).join('\n')
-        : '';
-
-    final toHeaders = headers['to'] ?? const [];
-    final recipientAddrs = <String>[];
-    for (final to in toHeaders) {
-      recipientAddrs.addAll(to.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty));
-    }
+    final recipientAddrs = (mime.to ?? const <MailAddress>[]).map((a) => a.email).toList();
 
     return Message(
       headers: headers,
-      textBody: body,
+      textBody: text,
+      htmlBody: html,
       recipientAddrs: recipientAddrs,
+      attachmentNames: attachmentNames,
     );
   }
 }

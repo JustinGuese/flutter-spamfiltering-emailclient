@@ -1,0 +1,6 @@
+From: "Julia Fischer" <julia@example.de>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Einladung zum Geburtstag am kommenden Wochenende
+
+Liebe Freunde, am kommenden Samstag moechte ich meinen Geburtstag feiern! Wir grillen zusammen ab 18 Uhr. Sagt mir bitte kurz Bescheid, wer kommen kann. Ich freue mich riesig auf unser Wiedersehen!

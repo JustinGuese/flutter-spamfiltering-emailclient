@@ -36,7 +36,13 @@ class Classifier {
     final tokenHashes = tokens.map(Tokenizer.hashToken).toList();
 
     // 2. Stage-A Robinson-Fisher Bayes
-    final bayesResult = await BayesClassifier.scoreTokens(tokenHashes, store);
+    final totals = await store.messageTotals();
+    final bayesResult = await BayesClassifier.scoreTokens(
+      tokenHashes,
+      store,
+      totalSpamMessages: totals.spam,
+      totalHamMessages: totals.ham,
+    );
     evidence.add(Evidence(
       id: 'bayes',
       weight: bayesResult.score,
@@ -71,10 +77,48 @@ class Classifier {
       ));
     }
 
-    // 7. Combine Stage-A signals into overall spamScore
-    final spamScore = _combineSpamSignals(bayesResult.score, evidence);
+    // Contacts and allow rules key on the From header, which anyone can forge.
+    // When the receiving server says the sender failed authentication, they
+    // must not vouch for the message.
+    const authFailIds = {'auth_dmarc_fail', 'auth_spf_fail', 'auth_dkim_fail'};
+    final authFailed = evidence.any((e) => authFailIds.contains(e.id));
 
-    // 8. Determine label: Stage-A vs Stage-B
+    // 7. Known contact signal
+    if (signals?.knownContact == true && !authFailed) {
+      evidence.add(const Evidence(
+        id: 'known_contact',
+        weight: -0.25,
+        detail: 'Sender is in your trusted contacts',
+      ));
+    }
+
+    // 8. Combine Stage-A signals into overall spamScore
+    var spamScore = _combineSpamSignals(bayesResult.score, evidence);
+
+    // Capping for known contacts (never auto-move to Junk unless phishing is present)
+    final hasPhishing = evidence.any((e) => phishingEvidenceIds.contains(e.id));
+    if (signals?.knownContact == true && !hasPhishing && !authFailed) {
+      spamScore = math.min(spamScore, 0.89);
+    }
+
+    // Sender rules take final effect
+    if (signals?.senderRule == SenderRuleAction.block) {
+      spamScore = 1.0;
+      evidence.add(const Evidence(
+        id: 'sender_blocked',
+        weight: 1.0,
+        detail: 'Sender or domain blocked by your rule',
+      ));
+    } else if (signals?.senderRule == SenderRuleAction.allow && !authFailed) {
+      spamScore = math.min(spamScore, 0.05);
+      evidence.add(const Evidence(
+        id: 'sender_allowed',
+        weight: -1.0,
+        detail: 'Sender or domain allowed by your rule',
+      ));
+    }
+
+    // 9. Determine label: Stage-A vs Stage-B
     Label label;
     if (spamScore >= spamUnsureThreshold) {
       label = Label.spam;
@@ -152,10 +196,34 @@ class Classifier {
         case 'community_blocklist':
           logit += communityLogitBoost;
           break;
+        case 'known_contact':
+          logit -= 2.5;
+          break;
         case 'advanced_model':
           logit += (ev.weight - 0.5) * 2.5;
           break;
         case 'disposable_domain':
+          logit += 1.5;
+          break;
+        case 'punycode_domain':
+          logit += 2.0;
+          break;
+        case 'lookalike_domain':
+          logit += 3.0;
+          break;
+        case 'reply_to_mismatch':
+          logit += 1.5;
+          break;
+        case 'url_shortener':
+          logit += 0.7;
+          break;
+        case 'dangerous_attachment':
+          logit += 3.0;
+          break;
+        case 'image_only':
+          logit += 1.0;
+          break;
+        case 'hidden_text':
           logit += 1.5;
           break;
         case 'display_name_spoof_email':

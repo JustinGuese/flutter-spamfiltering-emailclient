@@ -1,14 +1,33 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:spam_core/spam_core.dart';
 
-/// Trains prior token distributions from clean public corpora (SpamAssassin, Enron).
+/// Scored token candidate for feature selection ranking.
+class _ScoredToken {
+  final int hash;
+  final TokenCounts counts;
+  final double salience;
+
+  const _ScoredToken({
+    required this.hash,
+    required this.counts,
+    required this.salience,
+  });
+}
+
+/// Trains prior token distributions from licence-clean public corpora.
 class PriorTrainer {
   final Map<int, TokenCounts> _counts = {};
   int _totalSpam = 0;
   int _totalHam = 0;
   int _totalNewsletter = 0;
   int _totalInbox = 0;
+
+  int get totalSpam => _totalSpam;
+  int get totalHam => _totalHam;
+  int get totalNewsletter => _totalNewsletter;
+  int get totalInbox => _totalInbox;
 
   /// Ingests a message and updates token counts for the given label.
   void ingest(Message message, Label label) {
@@ -55,23 +74,121 @@ class PriorTrainer {
     }
   }
 
-  /// Exports trained model as JSON map.
-  Map<String, dynamic> exportModel({int minCount = 2}) {
-    final filteredTokens = <String, Map<String, int>>{};
+  /// Calculates the salience score for a token:
+  ///   count * |log((s + 1)/(h + 1) * totalH/totalS)|
+  static double calculateSalience(
+    TokenCounts counts, {
+    required int totalSpam,
+    required int totalHam,
+  }) {
+    final s = counts.spam;
+    final h = counts.ham;
+    final count = counts.spam + counts.ham + counts.newsletter + counts.inbox;
+    final effTotalS = totalSpam > 0 ? totalSpam : 1;
+    final effTotalH = totalHam > 0 ? totalHam : 1;
+    final totalRatio = effTotalH / effTotalS;
 
+    final odds = ((s + 1.0) / (h + 1.0)) * totalRatio;
+    return count * (math.log(odds)).abs();
+  }
+
+  /// Exports trained model as JSON map.
+  ///
+  /// - [minCount]: Minimum total occurrences across all classes to consider a token.
+  /// - [maxTokens]: Maximum number of most informative tokens to retain, ranked
+  ///   by `count * |log((s+1)/(h+1) * totalH/totalS)|`. If <= 0, no pruning is applied.
+  /// - [scaleTo]: Scales all counts and totals so each class equals at most N messages.
+  ///   Tokens that become 0 across all classes after scaling are dropped. If <= 0,
+  ///   no scaling is applied.
+  Map<String, dynamic> exportModel({
+    int minCount = 2,
+    int maxTokens = 20000,
+    int scaleTo = 200,
+    String corpora = 'unspecified',
+  }) {
+    // 1. Filter tokens with total count >= minCount
+    final candidates = <int, TokenCounts>{};
     for (final entry in _counts.entries) {
       final c = entry.value;
       final total = c.spam + c.ham + c.newsletter + c.inbox;
       if (total >= minCount) {
-        filteredTokens[entry.key.toString()] = c.toMap();
+        candidates[entry.key] = c;
       }
+    }
+
+    // 2. Rank by salience if maxTokens is set and candidate pool is larger
+    List<MapEntry<int, TokenCounts>> retainedTokens;
+    if (maxTokens > 0 && candidates.length > maxTokens) {
+      final scored = candidates.entries.map((e) {
+        final salience = calculateSalience(
+          e.value,
+          totalSpam: _totalSpam,
+          totalHam: _totalHam,
+        );
+        return _ScoredToken(hash: e.key, counts: e.value, salience: salience);
+      }).toList();
+
+      scored.sort((a, b) {
+        final cmp = b.salience.compareTo(a.salience);
+        if (cmp != 0) return cmp;
+        return a.hash.compareTo(b.hash);
+      });
+
+      retainedTokens = scored
+          .take(maxTokens)
+          .map((s) => MapEntry(s.hash, s.counts))
+          .toList();
+    } else {
+      retainedTokens = candidates.entries.toList();
+    }
+
+    // 3. Scale counts and totals so each class equals at most scaleTo messages
+    final bool applyScale = scaleTo > 0;
+    final double scaleSpam = (applyScale && _totalSpam > scaleTo) ? (scaleTo / _totalSpam) : 1.0;
+    final double scaleHam = (applyScale && _totalHam > scaleTo) ? (scaleTo / _totalHam) : 1.0;
+    final double scaleNews = (applyScale && _totalNewsletter > scaleTo) ? (scaleTo / _totalNewsletter) : 1.0;
+    final double scaleInbox = (applyScale && _totalInbox > scaleTo) ? (scaleTo / _totalInbox) : 1.0;
+
+    final int scaledTotalSpam = (applyScale && _totalSpam > scaleTo) ? scaleTo : _totalSpam;
+    final int scaledTotalHam = (applyScale && _totalHam > scaleTo) ? scaleTo : _totalHam;
+    final int scaledTotalNews = (applyScale && _totalNewsletter > scaleTo) ? scaleTo : _totalNewsletter;
+    final int scaledTotalInbox = (applyScale && _totalInbox > scaleTo) ? scaleTo : _totalInbox;
+
+    final filteredTokens = <String, Map<String, int>>{};
+
+    for (final entry in retainedTokens) {
+      final c = entry.value;
+      final s = applyScale ? (c.spam * scaleSpam).round() : c.spam;
+      final h = applyScale ? (c.ham * scaleHam).round() : c.ham;
+      final news = applyScale ? (c.newsletter * scaleNews).round() : c.newsletter;
+      final inbox = applyScale ? (c.inbox * scaleInbox).round() : c.inbox;
+
+      // Drop tokens where all counts become 0
+      if (s == 0 && h == 0 && news == 0 && inbox == 0) {
+        continue;
+      }
+
+      filteredTokens[entry.key.toString()] = {
+        'spam': s,
+        'ham': h,
+        'newsletter': news,
+        'inbox': inbox,
+      };
     }
 
     return {
       'version': 1,
-      'corpora': 'SpamAssassin-public, Enron-Spam',
+      'corpora': corpora,
       'trained_at': DateTime.now().toUtc().toIso8601String(),
+      'total_spam': scaledTotalSpam,
+      'total_ham': scaledTotalHam,
       'totals': {
+        'spam': scaledTotalSpam,
+        'ham': scaledTotalHam,
+        'newsletter': scaledTotalNews,
+        'inbox': scaledTotalInbox,
+      },
+      'raw_totals': {
         'spam': _totalSpam,
         'ham': _totalHam,
         'newsletter': _totalNewsletter,
@@ -83,8 +200,19 @@ class PriorTrainer {
   }
 
   /// Saves model to file.
-  void saveToFile(File file, {int minCount = 2}) {
-    final data = exportModel(minCount: minCount);
+  void saveToFile(
+    File file, {
+    int minCount = 2,
+    int maxTokens = 20000,
+    int scaleTo = 200,
+    String corpora = 'unspecified',
+  }) {
+    final data = exportModel(
+      minCount: minCount,
+      maxTokens: maxTokens,
+      scaleTo: scaleTo,
+      corpora: corpora,
+    );
     file.writeAsStringSync(const JsonEncoder.withIndent('  ').convert(data));
   }
 
@@ -129,6 +257,6 @@ class PriorTrainer {
       ), Label.newsletter);
     }
 
-    return trainer.exportModel(minCount: 1);
+    return trainer.exportModel(minCount: 1, maxTokens: 20000, scaleTo: 200);
   }
 }

@@ -1,0 +1,6 @@
+From: "Sarah Jenkins" <sarah@example.com>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Photos from the weekend concert and get-together
+
+Hey! I uploaded the photos from Saturday night's music show to our shared album. Take a look when you have a free moment, we captured some fantastic memories together!

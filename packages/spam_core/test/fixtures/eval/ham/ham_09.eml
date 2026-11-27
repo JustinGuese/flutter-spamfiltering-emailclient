@@ -1,0 +1,6 @@
+From: "Acme Logistics" <shipping@logistics.example.com>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Delivery update: Your package #TRK-819273 has shipped
+
+Great news! Your recent order shipped via standard courier. Estimated delivery is Thursday. Thank you for your business. Track package progress anytime with tracking number TRK-819273.

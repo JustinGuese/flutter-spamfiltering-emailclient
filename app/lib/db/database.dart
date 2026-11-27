@@ -55,6 +55,7 @@ class AppDatabase {
         message_id TEXT,
         subject TEXT NOT NULL,
         sender TEXT NOT NULL,
+        sender_email TEXT NOT NULL DEFAULT '',
         sender_domain TEXT,
         recipient_addrs TEXT NOT NULL,
         cc_addrs TEXT NOT NULL DEFAULT '',
@@ -138,6 +139,24 @@ class AppDatabase {
       );
       CREATE INDEX IF NOT EXISTS idx_unsubscribe_log_account_sender
         ON unsubscribe_log (account_id, sender_domain);
+      CREATE TABLE IF NOT EXISTS sender_rules (
+        pattern TEXT PRIMARY KEY,
+        kind TEXT NOT NULL,
+        action TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS prior_tokens (
+        hash INTEGER PRIMARY KEY,
+        spam INTEGER NOT NULL DEFAULT 0,
+        ham INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE IF NOT EXISTS sync_applied (
+        slot TEXT NOT NULL,
+        hash INTEGER NOT NULL,
+        spam INTEGER NOT NULL DEFAULT 0,
+        ham INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (slot, hash)
+      );
     ''');
     _migrate();
     _createSearchIndex();
@@ -182,6 +201,37 @@ class AppDatabase {
   /// what is missing, so it is safe on fresh and existing databases alike.
   void _migrate() {
     final messageCols = db.select('PRAGMA table_info(messages)').map((r) => r['name']).toSet();
+    if (!messageCols.contains('sender_email')) {
+      db.execute("ALTER TABLE messages ADD COLUMN sender_email TEXT NOT NULL DEFAULT ''");
+      final rows = db.select('SELECT id, sender FROM messages');
+      if (rows.isNotEmpty) {
+        db.execute('BEGIN TRANSACTION');
+        try {
+          final stmt = db.prepare('UPDATE messages SET sender_email = ? WHERE id = ?');
+          try {
+            for (final r in rows) {
+              final id = r['id'] as String;
+              final sender = (r['sender'] as String?) ?? '';
+              final trimmed = sender.trim();
+              final match = RegExp(r'<([^>]+)>').firstMatch(trimmed);
+              final email = match != null ? match.group(1)!.trim().toLowerCase() : trimmed.toLowerCase();
+              stmt.execute([email, id]);
+            }
+          } finally {
+            stmt.close();
+          }
+          db.execute('COMMIT');
+        } catch (_) {
+          db.execute('ROLLBACK');
+          rethrow;
+        }
+      }
+    }
+    final colsNow = db.select('PRAGMA table_info(messages)').map((r) => r['name']).toSet();
+    if (colsNow.contains('account_id') && colsNow.contains('sender_email') && colsNow.contains('date')) {
+      db.execute('CREATE INDEX IF NOT EXISTS idx_messages_sender_email ON messages (account_id, sender_email, date)');
+    }
+    db.execute('CREATE INDEX IF NOT EXISTS idx_contacts_email ON contacts (email)');
     if (!messageCols.contains('cc_addrs')) {
       // Mail synced before this column existed keeps '' until it is re-fetched.
       db.execute("ALTER TABLE messages ADD COLUMN cc_addrs TEXT NOT NULL DEFAULT ''");
@@ -214,6 +264,24 @@ class AppDatabase {
       );
       CREATE INDEX IF NOT EXISTS idx_unsubscribe_log_account_sender
         ON unsubscribe_log (account_id, sender_domain);
+      CREATE TABLE IF NOT EXISTS sender_rules (
+        pattern TEXT PRIMARY KEY,
+        kind TEXT NOT NULL,
+        action TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS prior_tokens (
+        hash INTEGER PRIMARY KEY,
+        spam INTEGER NOT NULL DEFAULT 0,
+        ham INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE IF NOT EXISTS sync_applied (
+        slot TEXT NOT NULL,
+        hash INTEGER NOT NULL,
+        spam INTEGER NOT NULL DEFAULT 0,
+        ham INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (slot, hash)
+      );
     ''');
   }
 

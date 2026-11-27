@@ -1,0 +1,6 @@
+From: "Carol Davis" <carol@example.org>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Project sprint sync meeting notes
+
+Hi team, thank you for your participation in today's planning sprint. Please review our assigned action items and update your project tickets before Friday.

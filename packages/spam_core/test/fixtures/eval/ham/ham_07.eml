@@ -1,0 +1,6 @@
+From: "Frank Wright" <frank@example.com>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: The distributed systems book we discussed
+
+Hey, the book I mentioned about distributed architecture is 'Designing Data-Intensive Applications'. It covers replication, consensus and database reliability in depth. Hope you enjoy reading it!

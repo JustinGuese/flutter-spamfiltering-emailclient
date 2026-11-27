@@ -12,6 +12,12 @@ abstract final class UiStrings {
   static const filterInbox = 'Inbox';
   static const filterNewsletters = 'Newsletters';
   static const filterSpam = 'Spam';
+  static const filterReview = 'Review';
+  static const reviewEmpty = 'No messages to review.';
+  static const filterNewSenders = 'New senders';
+  static const newSendersEmpty = 'No mail from new senders.';
+  static const actionSpam = 'Spam';
+  static const actionNotSpam = 'Not spam';
 
   static const pillSpam = 'Spam';
   static const pillNewsletter = 'Newsletter';
@@ -35,6 +41,26 @@ abstract final class UiStrings {
   static const signalHeuristic = 'Link & lookalike checks';
   static const signalHam = 'Your history';
   static const signalAi = 'On-device model';
+  static const signalSenderBlocked = 'Sender blocked';
+  static const signalSenderAllowed = 'Sender allowed';
+  static const signalKnownContact = 'Known contact';
+
+  // Phishing & Sender Rules
+  static const phishingTitle = 'Phishing warning';
+  static const phishingBody =
+      'This message looks like an attempt to steal your credentials or personal information.';
+  static const phishingFallbackDetail = 'Suspicious sender or links detected';
+  static const alwaysAllowSender = 'Always allow sender';
+  static const blockSender = 'Block sender';
+  static const blockDomain = 'Block domain';
+  static String alwaysAllowing(String email) => 'Always allowing $email';
+  static String blockedSender(String email) => 'Blocked $email';
+  static String blockedDomain(String domain) => 'Blocked domain @$domain';
+  static const senderRulesEmpty =
+      'No rules yet. You can block or allow senders from the message reader.';
+  static const screenerStrict = 'Strict screener';
+  static const screenerStrictHelp =
+      'Keep mail from new senders out of your inbox until you review it.';
 
   static const fullscreenEnter = 'Full screen';
   static const fullscreenExit = 'Exit full screen (Esc)';
@@ -236,6 +262,9 @@ abstract final class UiStrings {
         'heuristic' => signalHeuristic,
         'ham' => signalHam,
         'ai' => signalAi,
+        'sender_blocked' => signalSenderBlocked,
+        'sender_allowed' => signalSenderAllowed,
+        'known_contact' => signalKnownContact,
         _ => id,
       };
 

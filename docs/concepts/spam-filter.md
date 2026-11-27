@@ -86,12 +86,14 @@ On a brand-new installation with an empty database, Bayes classification cannot 
 
 ![Onboarding - Spam Filter on Device](../assets/screenshots/onboarding_page2.png)
 
-1. **Seed Prior (`app/assets/prior_model.json`)**:
-   !!! note "Seed Prior Honest Assessment"
-       The bundled `prior_model.json` is a **hand-curated seed** containing approximately 25 high-confidence spam tokens (e.g., `viagra`, `cialis`, `casino`, `pharmacy`, `rolex`, `mortgage`). It is **not** a trained statistical model derived from large public email corpora. Its sole purpose is to provide immediate detection for blatant unsolicited bulk mail before the user trains the filter.
+1. **Seed prior (`app/assets/prior_model.json`)**:
+   !!! note "Seed prior honest assessment"
+       The bundled `prior_model.json` is a **hand-curated seed**: pseudo-counts for about 25 high-signal tokens (`viagra`, `casino`, `lottery`, `meeting`, `agenda`, …). It is **not** trained on a corpus and carries no message totals, so the class-size correction only ever uses totals from real training. A prior trained on the SpamAssassin public corpus was evaluated and **rejected**: it caught 97 % of held-out corpus spam, but its 2002 mailing-list ham taught it that order, billing and appointment language is spam, and it would have moved 10 of the 30 modern ham fixtures to Junk. `app/test/prior_gate_test.dart` keeps any future prior from shipping unless it moves none of them.
 2. **Local Cold-Start Training (`app/lib/filter/cold_start.dart`)**:
    During initial account synchronization, `ColdStartTrainer` scans the user's existing mailbox folders:
    - Scans the IMAP Junk/Spam folder and trains all existing messages as `Label.spam`.
+   - Trains read Inbox and user-folder mail (spam score below 0.60, never Sent) as `Label.ham`, about as many messages as Junk had (at least 50, at most 500). Without this, every common word seen in Junk would score as spam. It waits until at least 20 such messages exist, so on a fresh install it runs after the first sync (`AppBootstrap` re-runs cold start once after the first sync with accounts), and then never again (setting `cold_start_ham_trained`).
+   - Message totals (`msg_total_spam` / `msg_total_ham`) are raised to what the token counts prove was trained (every message adds exactly one `list-unsub:*` token), for installs that trained before totals existed and after filter sync merges.
    - Scans the Sent folder to extract legitimate recipient email addresses and registers them in the local `contacts` table with `trust_level = 1` and `always_allow_images = 1`.
 
 ---
@@ -158,3 +160,62 @@ Tapping a figure in the sidebar's "Your filter" card (`app/lib/ui/protection/`) 
 Other tabs list caught messages (labelled Filter, Community or You) and what was learned. "Words learned" counts rows in `tokens`; the filter stores hashes, so no word list can be shown. When nothing has been caught yet the screen shows example numbers, clearly labelled as a sample. The "Pro" upgrade card appears for non-Pro users and opens the same upsell sheet as Settings, with price and renewal terms.
 
 ![The Protection Screen Statistics & Words Learned](../assets/screenshots/protection-stats2.png)
+
+---
+
+## Measured Accuracy & CI Benchmark
+
+To prevent regressions in spam detection and ensure legitimate personal and transactional emails are never silently discarded, the filter is validated on every continuous integration run via an automated benchmark suite (`packages/spam_core/test/eval_test.dart`):
+
+- **Synthetic Evaluation Suite**:
+  A curated corpus of ~70 synthetic RFC 822 / EML test fixtures (`packages/spam_core/test/fixtures/eval/`):
+  - **Spam (~30 files)**: Across diverse threat categories including lottery, pharmaceuticals, fake invoices, crypto scams, inheritance fraud, replica luxury goods, predatory lending, and unsolicited bulk commercial mail.
+  - **Ham (~30 files)**: Realistic personal correspondence, business syncs, transactional order receipts, utility statements, appointment reminders, newsletters with RFC 8058/2369 `List-Unsubscribe` headers, and multilingual emails (including German).
+  - **Phishing (~10 files)**: Targeting top brands and financial institutions using credential-harvesting techniques.
+- **Accuracy Gates**:
+  1. **Zero Ham Auto-Moves**: The false-positive auto-move rate must strictly equal $0.0\%$ (no legitimate email scored $\ge 0.90$).
+  2. **Minimal False Positives**: The false-positive flag rate must not exceed $5.0\%$ (share of legitimate ham scored $\ge 0.60$).
+  3. **High Spam Recall**: At least $80.0\%$ of unseen spam messages must be identified (scored $\ge 0.60$).
+  4. **100% Phishing Detection**: Every phishing fixture must trigger `Verdict.isPhishing`.
+
+- **Bundled prior gate** (`app/test/prior_gate_test.dart`): seeds the shipped prior alone and requires that no synthetic ham fixture scores ≥ 0.90 and at most 5 % score ≥ 0.60.
+- **Corpus prior, evaluated and not shipped**: trained on 80 % of the SpamAssassin public corpus and scored on the held-out 20 %, it caught 97.4 % of spam (370 / 380) and moved 1.0 % of ordinary ham (8 / 784) and 37 % of commercial "hard ham" (17 / 46) to Junk. On the modern synthetic ham fixtures it moved 10 of 30 to Junk, so it failed the gate above.
+
+---
+
+## Phishing & Evasion Detection
+
+Phishing attacks differ fundamentally from conventional bulk marketing spam: they often contain minimal text, impersonate trusted brands, or hijack legitimate infrastructure. DataFortress Mail implements dedicated phishing heuristics (`packages/spam_core/lib/src/phishing.dart`):
+
+### 1. Phishing Evidence Signals
+The classifier flags messages with `Verdict.isPhishing == true` when any of the seven core phishing signals are detected:
+- **`display_name_spoof_email` (+2.0 logit)**: The From display name contains an embedded email address conflicting with the actual sender domain (e.g., `From: "service@paypal.com" <scammer@evil.com>`).
+- **`display_name_brand_spoof` (+2.0 logit)**: The From display name claims a known brand (e.g., `"PayPal Security"`, `"Apple Support"`, `"Microsoft 365"`) but the message originates from an unassociated domain.
+- **`lookalike_domain` (+3.0 logit)**: The sender domain or hyperlink destination is a homoglyph or typo-squatted brand lookalike within Damerau-Levenshtein edit distance 1–2 (e.g., `paypa1.com`, `app1e.com`, `micros0ft.com`).
+- **`punycode_domain` (+2.0 logit)**: The sender domain or embedded link host utilizes internationalized punycode (`xn--...`), frequently used for IDN homograph attacks.
+- **`link_mismatch` (+2.5 logit)**: An HTML anchor tag displays a visible URL pointing to a reputable service while the hidden `href` redirects to an external malicious domain.
+- **`reply_to_mismatch` (+1.5 logit)**: The `Reply-To` address routes to a free webmail provider (e.g. Gmail, Yahoo) while the `From` header claims corporate or financial institution identity.
+- **`dangerous_attachment` (+3.0 logit)**: Attachments with executable, script, or container extensions (`.exe`, `.scr`, `.bat`, `.vbs`, `.iso`, `.hta`), or deceptive double extensions (`invoice.pdf.exe`).
+
+### 2. Contact Cap Override
+While legitimate mail from known contacts is normally protected by a `-2.5` logit reduction and capped at a maximum spam score of $0.89$ to prevent automatic junk moves, **the presence of any phishing signal overrides this cap**. This protects users against compromised contact accounts or forged sender headers.
+
+---
+
+## Sender Rules & Screener
+
+Users maintain explicit deterministic control over senders and sender domains via Sender Rules and the Mailbox Screener:
+
+### 1. Sender Rules (`app/lib/filter/sender_rules.dart`)
+- **Address vs Domain Rules**: Users can configure `allow` or `block` rules targeting specific email addresses or entire domains. Address rules take precedence over domain rules. Domain rules match the domain and all subdomains (e.g. `example.com` matches `mail.example.com`).
+- **Freemail Protection**: To prevent accidentally blocking millions of legitimate users, domain-level rules are restricted to private domains; public freemail domains (such as `@gmail.com`, `@yahoo.com`, `@outlook.com`) can only be blocked or allowed by specific individual email address.
+- **Classifier Integration**:
+  - `block` rule: Instantly forces spam score to $1.0$ with evidence `sender_blocked`.
+  - `allow` rule: Clamps spam score to at most $0.05$ with evidence `sender_allowed` (while preserving any phishing warning banners).
+
+### 2. Mailbox Screener (`app/lib/filter/screener.dart`)
+The Screener isolates correspondence from unfamiliar senders:
+- **New Senders**: Messages arriving in the Inbox whose sender is not a saved contact, has no explicit allow rule, and has no prior correspondence in the account outside Junk and Trash.
+- **Screener Modes**:
+  - `tab` (default): New-sender mail remains in the primary Inbox while also appearing under the "New Senders" mailbox chip for quick batch triage.
+  - `strict`: Mail from unknown senders is excluded from the primary Inbox query and only visible under the "New Senders" view until allowed or replied to.

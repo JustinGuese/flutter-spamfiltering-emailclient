@@ -1,0 +1,6 @@
+From: "CloudHost Billing" <billing@cloudhost.example.com>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: CloudHost Payment Receipt for Invoice #INV-77129
+
+We received your monthly payment for cloud hosting services under invoice #INV-77129. Plan: Standard Developer VPS. Amount: \$15.00. Thank you for your continued partnership with CloudHost!

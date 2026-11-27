@@ -1,0 +1,6 @@
+From: "Mom" <family@example.com>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Sunday family dinner at home at 6
+
+Hi honey, just reminding you about our family dinner on Sunday at 6:00 PM. Uncle Joe and Aunt Sarah are coming over too. Let me know if you would like apple pie!

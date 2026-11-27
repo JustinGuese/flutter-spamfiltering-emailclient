@@ -1,33 +1,106 @@
 {
   "version": 1,
-  "description": "Hand-curated seed prior (NOT corpus-trained). Counts are illustrative pseudo-counts for a small set of high-signal tokens. Regenerate with tools/train_prior on licence-clean corpora (SpamAssassin public / Enron-Spam; never TREC) before relying on it.",
-  "total_spam": 1896,
-  "total_ham": 4150,
+  "description": "Hand-curated seed prior (NOT corpus-trained): pseudo-counts for ~25 high-signal tokens. Deliberately has no message totals: totals come only from real training (cold start, verdicts). A SpamAssassin-trained prior was evaluated and rejected: its 2002 mailing-list ham made modern order/billing mail look like spam. Only replace this after the app's prior gate test passes.",
   "tokens": {
-    "viagra": {"spam": 142, "ham": 0},
-    "cialis": {"spam": 98, "ham": 0},
-    "casino": {"spam": 85, "ham": 1},
-    "pharmacy": {"spam": 110, "ham": 2},
-    "pills": {"spam": 75, "ham": 1},
-    "rolex": {"spam": 64, "ham": 0},
-    "replica": {"spam": 58, "ham": 0},
-    "invest": {"spam": 45, "ham": 8},
-    "mortgage": {"spam": 89, "ham": 3},
-    "refinance": {"spam": 72, "ham": 1},
-    "million": {"spam": 120, "ham": 15},
-    "dollars": {"spam": 110, "ham": 20},
-    "lottery": {"spam": 67, "ham": 0},
-    "winner": {"spam": 53, "ham": 2},
-    "congratulations": {"spam": 84, "ham": 12},
-    "unsubscribe": {"spam": 430, "ham": 680},
-    "newsletter": {"spam": 35, "ham": 310},
-    "meeting": {"spam": 4, "ham": 450},
-    "attached": {"spam": 25, "ham": 280},
-    "invoice": {"spam": 30, "ham": 190},
-    "schedule": {"spam": 2, "ham": 320},
-    "project": {"spam": 5, "ham": 410},
-    "update": {"spam": 40, "ham": 390},
-    "agenda": {"spam": 1, "ham": 180},
-    "team": {"spam": 15, "ham": 520}
+    "viagra": {
+      "spam": 142,
+      "ham": 0
+    },
+    "cialis": {
+      "spam": 98,
+      "ham": 0
+    },
+    "casino": {
+      "spam": 85,
+      "ham": 1
+    },
+    "pharmacy": {
+      "spam": 110,
+      "ham": 2
+    },
+    "pills": {
+      "spam": 75,
+      "ham": 1
+    },
+    "rolex": {
+      "spam": 64,
+      "ham": 0
+    },
+    "replica": {
+      "spam": 58,
+      "ham": 0
+    },
+    "invest": {
+      "spam": 45,
+      "ham": 8
+    },
+    "mortgage": {
+      "spam": 89,
+      "ham": 3
+    },
+    "refinance": {
+      "spam": 72,
+      "ham": 1
+    },
+    "million": {
+      "spam": 120,
+      "ham": 15
+    },
+    "dollars": {
+      "spam": 110,
+      "ham": 20
+    },
+    "lottery": {
+      "spam": 67,
+      "ham": 0
+    },
+    "winner": {
+      "spam": 53,
+      "ham": 2
+    },
+    "congratulations": {
+      "spam": 84,
+      "ham": 12
+    },
+    "unsubscribe": {
+      "spam": 430,
+      "ham": 680
+    },
+    "newsletter": {
+      "spam": 35,
+      "ham": 310
+    },
+    "meeting": {
+      "spam": 4,
+      "ham": 450
+    },
+    "attached": {
+      "spam": 25,
+      "ham": 280
+    },
+    "invoice": {
+      "spam": 30,
+      "ham": 190
+    },
+    "schedule": {
+      "spam": 2,
+      "ham": 320
+    },
+    "project": {
+      "spam": 5,
+      "ham": 410
+    },
+    "update": {
+      "spam": 40,
+      "ham": 390
+    },
+    "agenda": {
+      "spam": 1,
+      "ham": 180
+    },
+    "team": {
+      "spam": 15,
+      "ham": 520
+    }
   }
 }

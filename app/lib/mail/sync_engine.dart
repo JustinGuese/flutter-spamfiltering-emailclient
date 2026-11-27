@@ -246,11 +246,13 @@ class SyncEngine {
         headersMap.putIfAbsent('Subject', () => []).add(subject);
 
         final toList = msg.to?.map((a) => a.email).whereType<String>().toList() ?? const [];
+        final attachmentNames = extractAttachments(msg).map((a) => a.fileName).toList();
         final spamMsg = sc.Message(
           headers: headersMap,
           textBody: snippet,
           htmlBody: rawHtml,
           recipientAddrs: toList,
+          attachmentNames: attachmentNames,
         );
 
         final verdict = await filterService!.classifyMessage(
@@ -388,7 +390,12 @@ class SyncEngine {
     final msgId = '${folderId}_$uid';
     final subject = msg.decodeSubject() ?? '(No subject)';
     final sender = msg.from?.firstOrNull?.email ?? 'unknown@example.com';
-    final senderDomain = sender.contains('@') ? sender.split('@').last : null;
+    final senderTrimmed = sender.trim();
+    final senderMatch = RegExp(r'<([^>]+)>').firstMatch(senderTrimmed);
+    final senderEmail = senderMatch != null
+        ? senderMatch.group(1)!.trim().toLowerCase()
+        : senderTrimmed.toLowerCase();
+    final senderDomain = senderEmail.contains('@') ? senderEmail.split('@').last : null;
     final recipients = (msg.to?.map((a) => a.email).whereType<String>() ?? const []).join(', ');
     final ccAddrs = (msg.cc?.map((a) => a.email).whereType<String>() ?? const []).join(', ');
     final date = msg.decodeDate() ?? DateTime.now();
@@ -425,8 +432,8 @@ class SyncEngine {
 
     db.db.execute('''
       INSERT OR REPLACE INTO messages
-      (id, account_id, folder_id, uid, message_id, subject, sender, sender_domain, recipient_addrs, cc_addrs, date, snippet, is_read, has_attachments, classification_label, spam_score, list_unsubscribe, list_unsubscribe_post, sender_auth_pass)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (id, account_id, folder_id, uid, message_id, subject, sender, sender_email, sender_domain, recipient_addrs, cc_addrs, date, snippet, is_read, has_attachments, classification_label, spam_score, list_unsubscribe, list_unsubscribe_post, sender_auth_pass)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', [
       msgId,
       accountId,
@@ -435,6 +442,7 @@ class SyncEngine {
       messageIdHeader,
       subject,
       sender,
+      senderEmail,
       senderDomain,
       recipients,
       ccAddrs,
