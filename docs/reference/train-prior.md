@@ -141,14 +141,15 @@ dart run bin/train_prior.dart eval \
 ```
 Verify that:
 - Spam recall (score ≥ 0.60) is at least 95 %.
-- Ordinary ham moved to Junk (score ≥ 0.90) stays around 1 % or lower. The bundled prior scored 97.4 % recall and 1.0 % on the SpamAssassin hold-out; deliberately spam-like newsletters ("hard ham") score much worse and should be read separately.
+- Ordinary ham moved to Junk (score ≥ 0.90) stays around 1 % or lower; read deliberately spam-like newsletters ("hard ham") separately.
+- Then run the app's prior gate (`app/test/prior_gate_test.dart`) with the candidate bundled: a corpus hold-out alone does not show whether modern mail is safe.
 
 ### Step 5: Bundle Verified Model into App
 Once verified by the reviewer:
 ```bash
 cp /tmp/prior_model.json app/assets/prior_model.json
 ```
-Run `flutter test` in `app/` to ensure all cold-start and sync tests pass with the updated model.
+Run `flutter test` in `app/` (including `test/prior_gate_test.dart`) to ensure the prior gate, cold-start and sync tests pass with the updated model.
 
 ---
 
@@ -216,14 +217,9 @@ When training prior models intended for distribution or bundling into open-sourc
 - Use only cleaned, sanitized distributions. Be mindful that real personal emails and employee correspondence are contained within; ensure tokenization does not leak individual email addresses into distributed priors.
 
 ### 4. Bundled Prior
-`app/assets/prior_model.json` is trained on the SpamAssassin public corpus (1,896 spam, 4,150 ham) with the defaults (`--max-tokens 20000`, `--scale-to 200`) and written as compact JSON. Retrain with:
+`app/assets/prior_model.json` is still the **hand-curated seed** (no message totals). A prior trained on the SpamAssassin public corpus scored well on that corpus's own hold-out (97.4 % recall, 1.0 % of ordinary ham moved to Junk) but moved 10 of the 30 modern synthetic ham fixtures to Junk: 2002 mailing-list ham has no order, billing or appointment mail, so that language looked like spam. Before replacing the seed, run `flutter test test/prior_gate_test.dart` in `app/` with the candidate in place; it must pass. A corpus with modern transactional ham is needed for a trained prior to pass.
 
-```bash
-dart run bin/train_prior.dart train --spam-dir=<spam> --ham-dir=<ham> \
-  --corpora="SpamAssassin public corpus (20030228 + 20050311)" -o prior_model.json
-```
-
-`CorpusReader` MIME-decodes every message with `enough_mail` (the parser the app's sync uses), so the prior is trained on the same decoded text the app classifies. Non-UTF-8 files are read with malformed bytes replaced instead of being skipped.
+`CorpusReader` MIME-decodes every message with `enough_mail` (the parser the app's sync uses), so a prior is trained on the same decoded text the app classifies. Non-UTF-8 files are read with malformed bytes replaced instead of being skipped. Record the corpus with `--corpora`.
 
 See also:
 - [Spam Core API](spam-core-api.md)

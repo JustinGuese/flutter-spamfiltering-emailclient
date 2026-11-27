@@ -11,7 +11,6 @@ import '../mail/account_repository.dart';
 import '../mail/imap_service.dart';
 import '../mail/sync_engine.dart';
 import '../mail/unsubscribe_service.dart';
-import '../premium/crdt_counters.dart';
 import '../premium/filter_sync.dart';
 import 'imap_flags.dart';
 import 'token_store_drift.dart';
@@ -345,19 +344,7 @@ class VerdictController {
   }
 
   void _uploadCrdtState() {
-    final rows = db.db.select('SELECT hash, spam, ham FROM tokens');
-    final spamMap = <int, PNCounter>{};
-    final hamMap = <int, PNCounter>{};
-    for (final r in rows) {
-      final h = (r['hash'] as num).toInt();
-      final s = (r['spam'] as int?) ?? 0;
-      final hm = (r['ham'] as int?) ?? 0;
-      if (s != 0) spamMap[h] = PNCounter(positive: s > 0 ? s : 0, negative: s < 0 ? -s : 0);
-      if (hm != 0) hamMap[h] = PNCounter(positive: hm > 0 ? hm : 0, negative: hm < 0 ? -hm : 0);
-    }
-    filterSyncService!.uploadDeviceState(
-      CrdtTokenState(deviceId: filterSyncService!.deviceSlot, spamTokens: spamMap, hamTokens: hamMap),
-    );
+    filterSyncService!.uploadDeviceState(filterSyncService!.ownState());
   }
 
   void undo() {

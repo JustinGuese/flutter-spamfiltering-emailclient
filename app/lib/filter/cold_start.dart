@@ -16,6 +16,7 @@ class ColdStartTrainer {
   Future<void> runColdStart() async {
     // 1. Seed prior model from assets if tokens are empty
     await tokenStore.seedPriorModelIfEmpty();
+    tokenStore.reconcileMessageTotals();
 
     // 2. Train spam from messages in Junk folders. Runs once: counts are
     // incremental, so repeating it every launch inflated the spam counts, and
@@ -56,8 +57,9 @@ class ColdStartTrainer {
 
         for (final addr in addrs) {
           db.db.execute('''
-            INSERT OR REPLACE INTO contacts (id, email, trust_level, always_allow_images)
+            INSERT INTO contacts (id, email, trust_level, always_allow_images)
             VALUES (?, ?, 1, 1)
+            ON CONFLICT(id) DO UPDATE SET trust_level = MAX(trust_level, 1)
           ''', [addr.toLowerCase(), addr.toLowerCase()]);
         }
       }
@@ -70,6 +72,9 @@ class ColdStartTrainer {
 
   static const _junkTrainedKey = 'cold_start_junk_trained';
   static const _hamTrainedKey = 'cold_start_ham_trained';
+
+  /// Fewest read Inbox messages worth training as ham; below this, wait.
+  static const minHamMessages = 20;
 
   /// Trains every Junk message into the token counts in ONE transaction and
   /// records that it did, so a later launch skips it.
@@ -131,6 +136,11 @@ class ColdStartTrainer {
       ORDER BY m.date DESC
       LIMIT ?
     ''', [limit]);
+
+    // A fresh install runs this at launch, before the first sync, on an empty
+    // mailbox. Train only once there is enough read mail and only then set the
+    // flag, so the run after the first sync (AppBootstrap) does the training.
+    if (hamRows.length < minHamMessages) return;
 
     db.db.execute('BEGIN');
     try {

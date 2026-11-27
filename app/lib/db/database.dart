@@ -145,6 +145,18 @@ class AppDatabase {
         action TEXT NOT NULL,
         created_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS prior_tokens (
+        hash INTEGER PRIMARY KEY,
+        spam INTEGER NOT NULL DEFAULT 0,
+        ham INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE IF NOT EXISTS sync_applied (
+        slot TEXT NOT NULL,
+        hash INTEGER NOT NULL,
+        spam INTEGER NOT NULL DEFAULT 0,
+        ham INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (slot, hash)
+      );
     ''');
     _migrate();
     _createSearchIndex();
@@ -257,6 +269,18 @@ class AppDatabase {
         kind TEXT NOT NULL,
         action TEXT NOT NULL,
         created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS prior_tokens (
+        hash INTEGER PRIMARY KEY,
+        spam INTEGER NOT NULL DEFAULT 0,
+        ham INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE IF NOT EXISTS sync_applied (
+        slot TEXT NOT NULL,
+        hash INTEGER NOT NULL,
+        spam INTEGER NOT NULL DEFAULT 0,
+        ham INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (slot, hash)
       );
     ''');
   }

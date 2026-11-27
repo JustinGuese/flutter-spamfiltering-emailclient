@@ -51,19 +51,8 @@ void main() {
       VALUES ('j1', 'urgent project update schedule invoice meeting details')
     ''');
 
-    // Inbox messages with overlapping words
-    for (var i = 1; i <= 10; i++) {
-      db.db.execute('''
-        INSERT INTO messages (id, account_id, folder_id, uid, subject, sender,
-          recipient_addrs, date, snippet, is_read, spam_score)
-        VALUES ('m$i', 'a', 'inbox', ${10 + i}, 'project update schedule', 'colleague$i@example.com',
-          'me@example.com', '2026-01-02T0$i:00:00Z', '', 1, 0.0)
-      ''');
-      db.db.execute('''
-        INSERT INTO bodies (message_id, text_body)
-        VALUES ('m$i', 'project update schedule invoice meeting details for team discussion')
-      ''');
-    }
+    // Inbox messages with overlapping words (enough to pass the ham minimum)
+    _insertReadInbox(db, 25);
 
     final store = TokenStoreDrift(db);
     final trainer = ColdStartTrainer(db: db, tokenStore: store);
@@ -72,10 +61,10 @@ void main() {
 
     final hamTotalFirst = int.parse(db.getSetting('msg_total_ham') ?? '0');
     final spamTotalFirst = int.parse(db.getSetting('msg_total_spam') ?? '0');
-    // Totals = the bundled prior's totals + what cold start trained (10 ham, 1 spam).
+    // Totals = the bundled prior's totals (if any) + what cold start trained (25 ham, 1 spam).
     final prior = jsonDecode(File('assets/prior_model.json').readAsStringSync()) as Map<String, dynamic>;
-    expect(hamTotalFirst, equals((prior['total_ham'] as num).toInt() + 10));
-    expect(spamTotalFirst, equals((prior['total_spam'] as num).toInt() + 1));
+    expect(hamTotalFirst, equals(((prior['total_ham'] as num?)?.toInt() ?? 0) + 25));
+    expect(spamTotalFirst, equals(((prior['total_spam'] as num?)?.toInt() ?? 0) + 1));
 
     // Fresh normal message whose words appear in both is NOT scored >= 0.6
     final freshMsg = Message(
@@ -93,4 +82,59 @@ void main() {
     final hamTotalSecond = int.parse(db.getSetting('msg_total_ham') ?? '0');
     expect(hamTotalSecond, equals(hamTotalFirst));
   });
+
+  test('ham training waits for enough read mail instead of marking itself done', () async {
+    final db = await AppDatabase.open(inMemory: true);
+    db.db.execute(
+        "INSERT INTO folders (id, account_id, name, server_path, special_use) VALUES ('inbox', 'a', 'Inbox', 'INBOX', 'inbox')");
+    final store = TokenStoreDrift(db);
+    final trainer = ColdStartTrainer(db: db, tokenStore: store);
+
+    // Fresh install: launch-time cold start on an empty mailbox trains nothing...
+    await trainer.runColdStart();
+    expect(db.getSetting('cold_start_ham_trained'), isNot('1'));
+
+    // ...and the run after the first sync, once mail is there, does.
+    _insertReadInbox(db, ColdStartTrainer.minHamMessages + 5);
+    await trainer.runColdStart();
+    expect(db.getSetting('cold_start_ham_trained'), '1');
+    expect(int.parse(db.getSetting('msg_total_ham')!), ColdStartTrainer.minHamMessages + 5);
+  });
+
+  test('totals are backfilled from token counts on installs that trained before totals existed', () async {
+    final db = await AppDatabase.open(inMemory: true);
+    final store = TokenStoreDrift(db);
+    // 40 spam and 12 ham messages trained the old way: counts, no totals.
+    for (var i = 0; i < 40; i++) {
+      for (final t in Tokenizer.tokens(Normalizer.normalize(Message(
+          headers: {'From': ['s$i@spam.test'], 'Subject': ['cheap pills $i']}, textBody: 'cheap pills offer $i')))) {
+        store.apply(Tokenizer.hashToken(t), Label.spam, 1);
+      }
+    }
+    for (var i = 0; i < 12; i++) {
+      for (final t in Tokenizer.tokens(Normalizer.normalize(Message(
+          headers: {'From': ['c$i@example.com'], 'Subject': ['meeting notes $i']}, textBody: 'meeting notes for the team $i')))) {
+        store.apply(Tokenizer.hashToken(t), Label.ham, 1);
+      }
+    }
+    await ColdStartTrainer(db: db, tokenStore: store).runColdStart();
+    final totals = await store.messageTotals();
+    expect(totals.spam, 40);
+    expect(totals.ham, 12);
+  });
+}
+
+void _insertReadInbox(AppDatabase db, int n) {
+  for (var i = 1; i <= n; i++) {
+    final date = DateTime.utc(2026, 1, 2).add(Duration(minutes: i)).toIso8601String();
+    db.db.execute('''
+      INSERT INTO messages (id, account_id, folder_id, uid, subject, sender,
+        recipient_addrs, date, snippet, is_read, spam_score)
+      VALUES (?, 'a', 'inbox', ?, 'project update schedule', ?, 'me@example.com', ?, '', 1, 0.0)
+    ''', ['m$i', 100 + i, 'colleague$i@example.com', date]);
+    db.db.execute(
+      'INSERT INTO bodies (message_id, text_body) VALUES (?, ?)',
+      ['m$i', 'project update schedule invoice meeting details for team discussion'],
+    );
+  }
 }

@@ -98,8 +98,10 @@ class BayesClassifier {
         tokenProb = priorSpamProbability;
       } else {
         final useTotals = totalSpamMessages > 0 && totalHamMessages > 0;
-        final double fs = useTotals ? (s / totalSpamMessages) : (s / (s + h));
-        final double fh = useTotals ? (h / totalHamMessages) : (h / (s + h));
+        // A token occurs at most once per message, so a frequency above 1 means
+        // the totals lag the counts (seed pseudo-counts, merged sync counts).
+        final double fs = useTotals ? math.min(1.0, s / totalSpamMessages) : (s / (s + h));
+        final double fh = useTotals ? math.min(1.0, h / totalHamMessages) : (h / (s + h));
         final raw = (fs + fh > 0.0) ? (fs / (fs + fh)) : priorSpamProbability;
         final n = math.min(s + h, 1000000);
         tokenProb = (priorWeight * priorSpamProbability + n * raw) / (priorWeight + n);

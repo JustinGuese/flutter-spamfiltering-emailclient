@@ -86,12 +86,14 @@ On a brand-new installation with an empty database, Bayes classification cannot 
 
 ![Onboarding - Spam Filter on Device](../assets/screenshots/onboarding_page2.png)
 
-1. **Trained prior (`app/assets/prior_model.json`)**:
-   Trained with `tools/train_prior` on the SpamAssassin public corpus (1,896 spam, 4,150 ham), keeping the 20,000 most informative tokens and scaling the counts to 200 messages per class, so a user's own verdicts outweigh it quickly. The file holds only token hashes and counts, no message text. It is loaded once, into an empty token table; existing installs keep what they have learned. See [Measured Accuracy](#measured-accuracy-ci-benchmark) for what it does on its own.
+1. **Seed prior (`app/assets/prior_model.json`)**:
+   !!! note "Seed prior honest assessment"
+       The bundled `prior_model.json` is a **hand-curated seed**: pseudo-counts for about 25 high-signal tokens (`viagra`, `casino`, `lottery`, `meeting`, `agenda`, …). It is **not** trained on a corpus and carries no message totals, so the class-size correction only ever uses totals from real training. A prior trained on the SpamAssassin public corpus was evaluated and **rejected**: it caught 97 % of held-out corpus spam, but its 2002 mailing-list ham taught it that order, billing and appointment language is spam, and it would have moved 10 of the 30 modern ham fixtures to Junk. `app/test/prior_gate_test.dart` keeps any future prior from shipping unless it moves none of them.
 2. **Local Cold-Start Training (`app/lib/filter/cold_start.dart`)**:
    During initial account synchronization, `ColdStartTrainer` scans the user's existing mailbox folders:
    - Scans the IMAP Junk/Spam folder and trains all existing messages as `Label.spam`.
-   - Trains read Inbox and user-folder mail (spam score below 0.60, never Sent) as `Label.ham`, about as many messages as Junk had (at least 50, at most 500). Without this, every common word seen in Junk would score as spam. Runs once (setting `cold_start_ham_trained`), including on installs that already trained Junk only.
+   - Trains read Inbox and user-folder mail (spam score below 0.60, never Sent) as `Label.ham`, about as many messages as Junk had (at least 50, at most 500). Without this, every common word seen in Junk would score as spam. It waits until at least 20 such messages exist, so on a fresh install it runs after the first sync (`AppBootstrap` re-runs cold start once after the first sync with accounts), and then never again (setting `cold_start_ham_trained`).
+   - Message totals (`msg_total_spam` / `msg_total_ham`) are raised to what the token counts prove was trained (every message adds exactly one `list-unsub:*` token), for installs that trained before totals existed and after filter sync merges.
    - Scans the Sent folder to extract legitimate recipient email addresses and registers them in the local `contacts` table with `trust_level = 1` and `always_allow_images = 1`.
 
 ---
@@ -176,16 +178,8 @@ To prevent regressions in spam detection and ensure legitimate personal and tran
   3. **High Spam Recall**: At least $80.0\%$ of unseen spam messages must be identified (scored $\ge 0.60$).
   4. **100% Phishing Detection**: Every phishing fixture must trigger `Verdict.isPhishing`.
 
-- **Prior on real mail** (SpamAssassin public corpus, model trained on 80 %, scored on the held-out 20 %, prior only: no user training, contacts or rules):
-
-  | Measure | Result |
-  |---|---|
-  | Spam caught (score ≥ 0.60) | 97.4 % (370 / 380) |
-  | Spam moved to Junk (≥ 0.90) | 93.4 % |
-  | Ordinary ham moved to Junk (≥ 0.90) | 1.0 % (8 / 784) |
-  | "Hard ham" (commercial HTML newsletters) moved to Junk | 37 % (17 / 46) |
-
-  The corpus is from 2002–2005 and has no `Authentication-Results` headers, so the DMARC/DKIM signals never fire here. On a device, cold-start ham training, the known-contact cap and sender rules all lower false positives further. Reproduce with `train_prior eval` (see [Train Prior](../reference/train-prior.md)).
+- **Bundled prior gate** (`app/test/prior_gate_test.dart`): seeds the shipped prior alone and requires that no synthetic ham fixture scores ≥ 0.90 and at most 5 % score ≥ 0.60.
+- **Corpus prior, evaluated and not shipped**: trained on 80 % of the SpamAssassin public corpus and scored on the held-out 20 %, it caught 97.4 % of spam (370 / 380) and moved 1.0 % of ordinary ham (8 / 784) and 37 % of commercial "hard ham" (17 / 46) to Junk. On the modern synthetic ham fixtures it moved 10 of 30 to Junk, so it failed the gate above.
 
 ---
 

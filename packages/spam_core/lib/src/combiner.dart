@@ -77,8 +77,14 @@ class Classifier {
       ));
     }
 
+    // Contacts and allow rules key on the From header, which anyone can forge.
+    // When the receiving server says the sender failed authentication, they
+    // must not vouch for the message.
+    const authFailIds = {'auth_dmarc_fail', 'auth_spf_fail', 'auth_dkim_fail'};
+    final authFailed = evidence.any((e) => authFailIds.contains(e.id));
+
     // 7. Known contact signal
-    if (signals?.knownContact == true) {
+    if (signals?.knownContact == true && !authFailed) {
       evidence.add(const Evidence(
         id: 'known_contact',
         weight: -0.25,
@@ -91,7 +97,7 @@ class Classifier {
 
     // Capping for known contacts (never auto-move to Junk unless phishing is present)
     final hasPhishing = evidence.any((e) => phishingEvidenceIds.contains(e.id));
-    if (signals?.knownContact == true && !hasPhishing) {
+    if (signals?.knownContact == true && !hasPhishing && !authFailed) {
       spamScore = math.min(spamScore, 0.89);
     }
 
@@ -103,7 +109,7 @@ class Classifier {
         weight: 1.0,
         detail: 'Sender or domain blocked by your rule',
       ));
-    } else if (signals?.senderRule == SenderRuleAction.allow) {
+    } else if (signals?.senderRule == SenderRuleAction.allow && !authFailed) {
       spamScore = math.min(spamScore, 0.05);
       evidence.add(const Evidence(
         id: 'sender_allowed',

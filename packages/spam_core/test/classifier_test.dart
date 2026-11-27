@@ -207,5 +207,25 @@ void main() {
       // Link mismatch adds +2.5 logit, bayes adds spam, so uncapped it reaches >= 0.90
       expect(verdict.spamScore, greaterThanOrEqualTo(0.90));
     });
+
+    test('forged From (DMARC fail) gets neither contact trust nor the allow rule', () async {
+      final msg = Message(
+        headers: {
+          'from': ['friend@example.com'],
+          'subject': ['Claim your lottery winnings now'],
+          'authentication-results': ['mx.example.com; dmarc=fail; spf=fail'],
+        },
+        textBody: 'Congratulations! You won the international lottery reward! Claim your payout immediately.',
+      );
+      final norm = Normalizer.normalize(msg);
+
+      final contact = await Classifier.score(norm, store, const Signals(knownContact: true));
+      expect(contact.evidence.any((e) => e.id == 'known_contact'), isFalse);
+      expect(contact.spamScore, greaterThanOrEqualTo(0.90));
+
+      final allowed = await Classifier.score(norm, store, const Signals(senderRule: SenderRuleAction.allow));
+      expect(allowed.evidence.any((e) => e.id == 'sender_allowed'), isFalse);
+      expect(allowed.spamScore, greaterThanOrEqualTo(0.90));
+    });
   });
 }

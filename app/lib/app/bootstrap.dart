@@ -5,6 +5,9 @@ import 'package:df_firebase_auth/df_firebase_auth.dart';
 import 'package:df_funnel/df_funnel.dart';
 import 'package:df_notifications/df_notifications.dart';
 import '../community/blocklist_sync.dart';
+import '../db/database.dart';
+import '../filter/cold_start.dart';
+import '../filter/token_store_drift.dart';
 import 'log.dart';
 import '../mail/account_repository.dart';
 import '../mail/sync_engine.dart';
@@ -45,6 +48,7 @@ class AppBootstrapState extends ConsumerState<AppBootstrap>
   Timer? _syncTimer;
   Timer? _flushTimer;
   bool _isCheckingSoftAsk = false;
+  bool _coldStartAfterSyncDone = false;
 
   @visibleForTesting
   Timer? get syncTimer => _syncTimer;
@@ -186,6 +190,20 @@ class AppBootstrapState extends ConsumerState<AppBootstrap>
       } catch (e, st) {
         logError('sync ${acc.email}', e, st);
         ref.read(syncErrorProvider.notifier).set('Sync failed for ${acc.email}: $e');
+      }
+    }
+
+    // main() runs cold start before any mail exists on a fresh install (or for
+    // a newly added account), so ham training and Sent contacts would never
+    // happen. Run it once more after the first sync that had accounts; it is
+    // idempotent (once-flags), so later launches just skip the work.
+    if (accounts.isNotEmpty && !_coldStartAfterSyncDone && mounted) {
+      _coldStartAfterSyncDone = true;
+      try {
+        await ColdStartTrainer(db: ref.read(databaseProvider), tokenStore: ref.read(tokenStoreProvider))
+            .runColdStart();
+      } catch (e, st) {
+        logError('cold start after sync', e, st);
       }
     }
 
