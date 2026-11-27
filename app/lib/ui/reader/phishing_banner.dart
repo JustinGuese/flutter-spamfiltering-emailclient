@@ -25,7 +25,7 @@ class PhishingBanner extends StatelessWidget {
       (e) => phishingEvidenceIds.contains(e.id),
       orElse: () => verdict.evidence.isNotEmpty
           ? verdict.evidence.first
-          : const Evidence(id: 'phishing', weight: 1.0, detail: 'Suspicious sender or links detected'),
+          : const Evidence(id: 'phishing', weight: 1.0, detail: UiStrings.phishingFallbackDetail),
     );
 
     return Container(

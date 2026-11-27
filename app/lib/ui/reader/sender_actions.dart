@@ -51,17 +51,14 @@ class SenderActions extends ConsumerWidget {
             }
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Always allowing $email'),
+                content: Text(UiStrings.alwaysAllowing(email)),
                 action: SnackBarAction(
                   label: AppStrings.undoAction,
                   onPressed: () {
-                    ref.read(senderRulesProvider).remove(email);
                     if (wasSpam) {
-                      ref.read(verdictControllerProvider).applyVerdict(
-                            messageId: messageId,
-                            newLabel: Label.spam,
-                          );
+                      ref.read(verdictControllerProvider).undo();
                     }
+                    ref.read(senderRulesProvider).remove(email);
                   },
                 ),
               ),
@@ -84,18 +81,23 @@ class SenderActions extends ConsumerWidget {
         TextButton.icon(
           onPressed: () {
             ref.read(senderRulesProvider).set(email, 'address', SenderRuleAction.block);
-            ref.read(verdictControllerProvider).applyVerdict(
-                  messageId: messageId,
-                  newLabel: Label.spam,
-                );
+            final applyVerdict = currentLabel != Label.spam;
+            if (applyVerdict) {
+              ref.read(verdictControllerProvider).applyVerdict(
+                    messageId: messageId,
+                    newLabel: Label.spam,
+                  );
+            }
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Blocked $email'),
+                content: Text(UiStrings.blockedSender(email)),
                 action: SnackBarAction(
                   label: AppStrings.undoAction,
                   onPressed: () {
+                    if (applyVerdict) {
+                      ref.read(verdictControllerProvider).undo();
+                    }
                     ref.read(senderRulesProvider).remove(email);
-                    ref.read(verdictControllerProvider).undo();
                   },
                 ),
               ),
@@ -119,18 +121,23 @@ class SenderActions extends ConsumerWidget {
           TextButton.icon(
             onPressed: () {
               ref.read(senderRulesProvider).set(domain, 'domain', SenderRuleAction.block);
-              ref.read(verdictControllerProvider).applyVerdict(
-                    messageId: messageId,
-                    newLabel: Label.spam,
-                  );
+              final applyVerdict = currentLabel != Label.spam;
+              if (applyVerdict) {
+                ref.read(verdictControllerProvider).applyVerdict(
+                      messageId: messageId,
+                      newLabel: Label.spam,
+                    );
+              }
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Blocked domain @$domain'),
+                  content: Text(UiStrings.blockedDomain(domain)),
                   action: SnackBarAction(
                     label: AppStrings.undoAction,
                     onPressed: () {
+                      if (applyVerdict) {
+                        ref.read(verdictControllerProvider).undo();
+                      }
                       ref.read(senderRulesProvider).remove(domain);
-                      ref.read(verdictControllerProvider).undo();
                     },
                   ),
                 ),

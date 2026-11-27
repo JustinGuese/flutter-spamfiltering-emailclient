@@ -54,9 +54,11 @@ class Normalizer {
 
     // Compute tokenText with hidden content and zero-width chars removed (anti-poisoning)
     String tokenRaw;
-    if (message.textBody.trim().isEmpty && message.htmlBody != null) {
+    if (message.htmlBody != null && _hiddenStyleTagPattern.hasMatch(message.htmlBody!)) {
       final html = message.htmlBody!.replaceAll(_hiddenStyleTagPattern, ' ');
       tokenRaw = _stripHtml(html);
+    } else if (message.textBody.trim().isEmpty && message.htmlBody != null) {
+      tokenRaw = _stripHtml(message.htmlBody!);
     } else {
       tokenRaw = message.textBody.replaceAll(_hiddenStyleTagPattern, ' ');
     }

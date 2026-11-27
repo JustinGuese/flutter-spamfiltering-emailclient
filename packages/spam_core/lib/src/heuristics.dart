@@ -75,19 +75,13 @@ class Heuristics {
     }
 
     // Check if display name claims a sensitive brand but domain doesn't match
-    for (final entry in phishedBrands.entries) {
-      final brand = entry.key;
-      if (displayName.contains(brand)) {
-        final senderReg = senderDomain != null ? getRegistrableDomain(senderDomain) : '';
-        if (senderDomain == null || !entry.value.contains(senderReg)) {
-          evidence.add(Evidence(
-            id: 'display_name_brand_spoof',
-            weight: 0.35,
-            detail: 'Display name claims brand "$brand" but sender domain is $senderDomain',
-          ));
-          break;
-        }
-      }
+    final brand = claimedBrand(displayName);
+    if (brand != null && !isLegitBrandSender(brand, senderDomain)) {
+      evidence.add(Evidence(
+        id: 'display_name_brand_spoof',
+        weight: 0.35,
+        detail: 'Display name claims brand "$brand" but sender domain is $senderDomain',
+      ));
     }
   }
 

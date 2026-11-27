@@ -42,6 +42,24 @@ Thanks for choosing our service.
       expect(normalized.cleanedText, isNot(contains('<html>')));
       expect(normalized.extractedUrls, contains('https://service.org/login'));
     });
+
+    test('anti-poisoning applies to synced mail when htmlBody has hidden-styled element', () {
+      const hiddenPart = 'secretpoisonword buyviagranow';
+      final msg = const Message(
+        headers: {'from': ['newsletter@store.com'], 'subject': ['Weekly Deals']},
+        textBody: 'Special deals for you today. $hiddenPart Check them out.',
+        htmlBody: '<p>Special deals for you today. <span style="display:none">$hiddenPart</span> Check them out.</p>',
+      );
+
+      final normalized = Normalizer.normalize(msg);
+      final tokens = Tokenizer.tokens(normalized);
+
+      expect(normalized.cleanedText, contains('secretpoisonword'));
+      expect(tokens, contains('special'));
+      expect(tokens, contains('deals'));
+      expect(tokens, isNot(contains('secretpoisonword')));
+      expect(tokens, isNot(contains('buyviagranow')));
+    });
   });
 
   group('Tokenizer', () {

@@ -32,18 +32,20 @@ void main() {
   void insertMsg({
     required String id,
     required String sender,
+    String? senderEmail,
     String? senderDomain,
     required String date,
     String folderId = 'inbox_f',
     String classificationLabel = 'inbox',
     double spamScore = 0.0,
   }) {
+    final email = senderEmail ?? SenderRules.extractEmail(sender);
     db.db.execute('''
       INSERT INTO messages (
-        id, account_id, folder_id, uid, subject, sender, sender_domain,
+        id, account_id, folder_id, uid, subject, sender, sender_email, sender_domain,
         recipient_addrs, date, snippet, classification_label, spam_score
-      ) VALUES (?, 'acc1', ?, 1, 'Subject', ?, ?, 'me@mymail.com', ?, 'Snippet', ?, ?)
-    ''', [id, folderId, sender, senderDomain, date, classificationLabel, spamScore]);
+      ) VALUES (?, 'acc1', ?, 1, 'Subject', ?, ?, ?, 'me@mymail.com', ?, 'Snippet', ?, ?)
+    ''', [id, folderId, sender, email, senderDomain, date, classificationLabel, spamScore]);
   }
 
   group('Screener (S5)', () {
@@ -150,6 +152,43 @@ void main() {
           AND ${newSenderWhere.sql}
       ''', newSenderWhere.args);
       expect(newSendersRows.map((r) => r['id']), contains('msg_new'));
+    });
+
+    test('10 000 inbox messages from 2 000 senders COUNT finishes in under 1 second', () {
+      db.db.execute('BEGIN TRANSACTION');
+      try {
+        final stmt = db.db.prepare('''
+          INSERT INTO messages (
+            id, account_id, folder_id, uid, subject, sender, sender_email, sender_domain,
+            recipient_addrs, date, snippet, classification_label, spam_score
+          ) VALUES (?, 'acc1', 'inbox_f', ?, 'Subj', ?, ?, 'example.com', 'me@mymail.com', ?, 'Snip', 'inbox', 0.0)
+        ''');
+        try {
+          for (var i = 0; i < 10000; i++) {
+            final senderIdx = i % 2000;
+            final senderEmail = 'sender$senderIdx@example.com';
+            final sender = 'Sender $senderIdx <$senderEmail>';
+            final date = DateTime(2026, 1, 1).add(Duration(minutes: i)).toIso8601String();
+            stmt.execute(['bench_$i', i + 1, sender, senderEmail, date]);
+          }
+        } finally {
+          stmt.dispose();
+        }
+        db.db.execute('COMMIT');
+      } catch (_) {
+        db.db.execute('ROLLBACK');
+        rethrow;
+      }
+
+      final sw = Stopwatch()..start();
+      final where = screener.newSenderWhereClause(tableAlias: 'messages');
+      final rows = db.db.select(
+        'SELECT COUNT(*) AS n FROM messages WHERE ${where.sql}',
+        where.args,
+      );
+      sw.stop();
+      expect(rows.first['n'] as int, equals(2000));
+      expect(sw.elapsedMilliseconds, lessThan(1000));
     });
   });
 }

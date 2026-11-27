@@ -49,9 +49,15 @@ abstract final class UiStrings {
   static const phishingTitle = 'Phishing warning';
   static const phishingBody =
       'This message looks like an attempt to steal your credentials or personal information.';
+  static const phishingFallbackDetail = 'Suspicious sender or links detected';
   static const alwaysAllowSender = 'Always allow sender';
   static const blockSender = 'Block sender';
   static const blockDomain = 'Block domain';
+  static String alwaysAllowing(String email) => 'Always allowing $email';
+  static String blockedSender(String email) => 'Blocked $email';
+  static String blockedDomain(String domain) => 'Blocked domain @$domain';
+  static const senderRulesEmpty =
+      'No rules yet. You can block or allow senders from the message reader.';
   static const screenerStrict = 'Strict screener';
   static const screenerStrictHelp =
       'Keep mail from new senders out of your inbox until you review it.';

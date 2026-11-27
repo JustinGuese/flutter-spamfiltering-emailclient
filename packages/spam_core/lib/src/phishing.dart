@@ -16,8 +16,8 @@ class PhishingChecks {
     '.docm', '.xlsm', '.pptm',
   };
 
-  static final RegExp _hiddenStylePattern = RegExp(
-    r'(?:display\s*:\s*none|visibility\s*:\s*hidden|font-size\s*:\s*(?:0(?:px)?|1px))',
+  static final RegExp _hiddenStyleTagPattern = RegExp(
+    r'''<([a-zA-Z0-9]+)[^>]*style=["'][^"']*(?:display\s*:\s*none|visibility\s*:\s*hidden|font-size\s*:\s*(?:0(?:px)?|1px))[^"']*["'][^>]*>([\s\S]*?)<\/\1>''',
     caseSensitive: false,
   );
 
@@ -73,21 +73,30 @@ class PhishingChecks {
       }
     }
 
+    final targetSet = lookalikeTargets.toSet();
+
     for (final host in candidateHosts) {
       if (host.isEmpty) continue;
-      for (final brandDomain in allBrandDomains) {
-        if (host == brandDomain) continue;
+      if (allBrandDomains.contains(host)) continue;
 
-        final mapped = _mapLookalike(host);
-        final isHomoglyph = mapped == brandDomain;
-        final dOrig = _damerauLevenshtein(host, brandDomain);
-        final dMapped = _damerauLevenshtein(mapped, brandDomain);
+      final label = host.split('.').first;
+      if (targetSet.contains(label)) continue;
+      if (label.length < 4) continue;
 
-        if (isHomoglyph || (dOrig >= 1 && dOrig <= 2) || (dMapped >= 1 && dMapped <= 2)) {
+      final mapped = _mapLookalike(label);
+      final isHomoglyph = mapped != label;
+
+      for (final target in lookalikeTargets) {
+        final matchesHomoglyph = isHomoglyph && mapped == target;
+        final d = _damerauLevenshtein(label, target);
+        final matchesDist1 = target.length >= 6 && d == 1;
+        final matchesDist2 = target.length >= 9 && d == 2;
+
+        if (matchesHomoglyph || matchesDist1 || matchesDist2) {
           evidence.add(Evidence(
             id: 'lookalike_domain',
             weight: 0.45,
-            detail: 'Domain "$host" is a lookalike of brand domain "$brandDomain"',
+            detail: 'Domain "$host" is a lookalike of brand domain "$target"',
           ));
           return;
         }
@@ -147,19 +156,6 @@ class PhishingChecks {
           break;
         }
       }
-      if (!dangerous) {
-        // Double extension check e.g. invoice.pdf.exe or file.doc.hta
-        final lastDot = lower.lastIndexOf('.');
-        if (lastDot > 0) {
-          final beforeDot = lower.substring(0, lastDot);
-          if (beforeDot.contains('.')) {
-            final innerExt = beforeDot.substring(beforeDot.lastIndexOf('.'));
-            if ({'.pdf', '.doc', '.docx', '.xls', '.xlsx', '.txt', '.jpg', '.png'}.contains(innerExt)) {
-              dangerous = true;
-            }
-          }
-        }
-      }
 
       if (dangerous) {
         evidence.add(Evidence(
@@ -184,22 +180,29 @@ class PhishingChecks {
   }
 
   static void _checkHiddenText(Normalized normalized, List<Evidence> evidence) {
+    var hiddenWords = 0;
     final html = normalized.original.htmlBody;
-    if (html != null && _hiddenStylePattern.hasMatch(html)) {
-      evidence.add(const Evidence(
-        id: 'hidden_text',
-        weight: 0.30,
-        detail: 'Message contains hidden or invisible text styled elements',
-      ));
-      return;
+    if (html != null) {
+      for (final match in _hiddenStyleTagPattern.allMatches(html)) {
+        final innerText = match.group(0)!.replaceAll(RegExp(r'<[^>]*>'), ' ');
+        final words = innerText
+            .trim()
+            .split(RegExp(r'\s+'))
+            .where((w) => w.isNotEmpty && RegExp(r'[a-zA-Z0-9]').hasMatch(w));
+        hiddenWords += words.length;
+      }
     }
 
     final raw = (normalized.original.htmlBody ?? '') + normalized.original.textBody;
-    if (_zeroWidthPattern.allMatches(raw).length >= 5) {
-      evidence.add(const Evidence(
+    final zeroWidthCount = _zeroWidthPattern.allMatches(raw).length;
+
+    if (hiddenWords >= 40 || zeroWidthCount >= 5) {
+      evidence.add(Evidence(
         id: 'hidden_text',
         weight: 0.30,
-        detail: 'Message contains excessive zero-width characters',
+        detail: hiddenWords >= 40
+            ? 'Message contains hidden or invisible text styled elements'
+            : 'Message contains excessive zero-width characters',
       ));
     }
   }
@@ -211,10 +214,10 @@ class PhishingChecks {
   }
 
   static bool _claimsAnyBrand(String fromHeader, String fromDomain) {
-    final lowerHeader = fromHeader.toLowerCase();
-    final lowerDomain = fromDomain.toLowerCase();
-    for (final brand in phishedBrands.keys) {
-      if (lowerHeader.contains(brand) || lowerDomain.contains(brand)) {
+    final brand = claimedBrand(fromHeader);
+    if (brand != null) return true;
+    for (final b in phishedBrands.keys) {
+      if (isLegitBrandSender(b, fromDomain)) {
         return true;
       }
     }
@@ -228,6 +231,7 @@ class PhishingChecks {
     s = s.replaceAll('3', 'e');
     s = s.replaceAll('5', 's');
     s = s.replaceAll('rn', 'm');
+    s = s.replaceAll('vv', 'w');
     return s;
   }
 

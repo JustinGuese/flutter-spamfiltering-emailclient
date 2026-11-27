@@ -91,3 +91,110 @@ String getRegistrableDomain(String host) {
 
 /// Set of all valid brand registrable domains across phishedBrands.
 final Set<String> allBrandDomains = phishedBrands.values.expand((d) => d).toSet();
+
+/// Ambiguous brand names that should never be matched by claimedBrand.
+const Set<String> ambiguousBrandKeys = {
+  'x',
+  'target',
+  'square',
+  'gemini',
+  'zoom',
+  'chase',
+  'booking',
+  'elster',
+  'kraken',
+  'ing',
+};
+
+/// Curated list of distinctive brand labels for lookalike comparison.
+const List<String> lookalikeTargets = [
+  'paypal',
+  'microsoft',
+  'google',
+  'amazon',
+  'netflix',
+  'sparkasse',
+  'commerzbank',
+  'revolut',
+  'wellsfargo',
+  'bankofamerica',
+  'coinbase',
+  'binance',
+  'docusign',
+  'dropbox',
+  'linkedin',
+  'facebook',
+  'instagram',
+  'whatsapp',
+  'steampowered',
+  'steamcommunity',
+  'airbnb',
+  'postbank',
+  'citibank',
+  'santander',
+  'barclays',
+  'bnpparibas',
+  'icloud',
+  'outlook',
+  'hotmail',
+  'royalmail',
+  'laposte',
+  'salesforce',
+  'turbotax',
+  'spotify',
+  'github',
+  'gitlab',
+  'apple',
+  'adobe',
+  'yahoo',
+  'ebay',
+];
+
+final Map<String, RegExp> _brandWordPatterns = {
+  for (final brand in phishedBrands.keys)
+    if (!ambiguousBrandKeys.contains(brand))
+      brand: RegExp(
+        r'(?<![\p{L}\p{N}])' + RegExp.escape(brand) + r'(?![\p{L}\p{N}])',
+        caseSensitive: false,
+        unicode: true,
+      ),
+};
+
+/// Checks if [text] claims any known brand via whole-word matching.
+/// Ambiguous keys are ignored.
+String? claimedBrand(String text) {
+  for (final entry in _brandWordPatterns.entries) {
+    if (entry.value.hasMatch(text)) {
+      return entry.key;
+    }
+  }
+  return null;
+}
+
+/// Checks whether [senderDomain] is legitimate for the claimed [brand].
+bool isLegitBrandSender(String brand, String? senderDomain) {
+  if (senderDomain == null || senderDomain.trim().isEmpty) return false;
+  final regDomain = getRegistrableDomain(senderDomain);
+  if (regDomain.isEmpty) return false;
+
+  final domains = phishedBrands[brand];
+  if (domains == null || domains.isEmpty) return false;
+
+  // 1. Registrable domain is one of the brand's domains
+  if (domains.contains(regDomain)) return true;
+
+  // 2. First label equals the first label of one of the brand's domains
+  final senderFirstLabel = regDomain.split('.').first;
+  for (final d in domains) {
+    final brandFirstLabel = d.split('.').first;
+    if (senderFirstLabel == brandFirstLabel) return true;
+  }
+
+  // 3. Registrable domain contains the brand key with spaces/hyphens removed
+  final cleanedBrand = brand.replaceAll(RegExp(r'[\s\-]'), '').toLowerCase();
+  if (cleanedBrand.isNotEmpty && regDomain.contains(cleanedBrand)) {
+    return true;
+  }
+
+  return false;
+}

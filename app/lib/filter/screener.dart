@@ -51,23 +51,21 @@ class Screener {
   /// - No OTHER message from the same sender in the account outside Junk/Trash is older than this one.
   WhereClause newSenderWhereClause({String tableAlias = 'messages'}) {
     final a = tableAlias;
-    final email = senderEmailExpr(a);
-    final otherEmail = senderEmailExpr('o');
 
     final sql = '''
 ($a.folder_id IN (SELECT id FROM folders WHERE LOWER(COALESCE(special_use, '')) = 'inbox' OR LOWER(name) = 'inbox')
 AND NOT EXISTS (
   SELECT 1 FROM contacts c
-  WHERE LOWER(TRIM(c.email)) = $email
+  WHERE c.email = $a.sender_email
 )
 AND NOT EXISTS (
   SELECT 1 FROM sender_rules sr
   WHERE sr.action = 'allow'
     AND (
-      (sr.kind = 'address' AND sr.pattern = $email)
+      (sr.kind = 'address' AND sr.pattern = $a.sender_email)
       OR (sr.kind = 'domain' AND (
-        $email LIKE '%@' || sr.pattern
-        OR $email LIKE '%.' || sr.pattern
+        $a.sender_email LIKE '%@' || sr.pattern
+        OR $a.sender_email LIKE '%.' || sr.pattern
         OR LOWER(TRIM(COALESCE($a.sender_domain, ''))) = sr.pattern
       ))
     )
@@ -78,7 +76,7 @@ AND NOT EXISTS (
   WHERE o.id != $a.id
     AND o.account_id = $a.account_id
     AND LOWER(COALESCE(ofld.special_use, '')) NOT IN ('junk', 'trash')
-    AND $otherEmail = $email
+    AND o.sender_email = $a.sender_email
     AND (o.date < $a.date OR (o.date = $a.date AND o.id < $a.id))
 ))''';
 

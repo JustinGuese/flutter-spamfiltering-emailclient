@@ -58,7 +58,7 @@ class SenderRulesTile extends ConsumerWidget {
           const SizedBox(height: 4),
           if (rules.isEmpty)
             Text(
-              'No rules yet. You can block or allow senders from the message reader.',
+              UiStrings.senderRulesEmpty,
               style: AppType.ui(palette.textTertiary, size: 12),
             )
           else
