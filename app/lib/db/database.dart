@@ -206,7 +206,7 @@ class AppDatabase {
               stmt.execute([email, id]);
             }
           } finally {
-            stmt.dispose();
+            stmt.close();
           }
           db.execute('COMMIT');
         } catch (_) {

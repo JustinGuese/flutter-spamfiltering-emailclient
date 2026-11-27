@@ -22,7 +22,8 @@ void main(List<String> args) async {
     ..addOption('output', abbr: 'o', defaultsTo: 'prior_model.json', help: 'Output JSON model path')
     ..addOption('min-count', defaultsTo: '2', help: 'Minimum token count threshold')
     ..addOption('max-tokens', defaultsTo: '20000', help: 'Maximum number of top informative tokens to retain')
-    ..addOption('scale-to', defaultsTo: '200', help: 'Scale token counts and totals so each class equals at most N messages');
+    ..addOption('scale-to', defaultsTo: '200', help: 'Scale token counts and totals so each class equals at most N messages')
+    ..addOption('corpora', defaultsTo: 'unspecified', help: 'Corpus names recorded in the model file');
 
   // Eval options
   parser.commands['eval']!
@@ -109,6 +110,7 @@ void main(List<String> args) async {
         minCount: minCount,
         maxTokens: maxTokens,
         scaleTo: scaleTo,
+        corpora: cmd['corpora'] as String,
       );
       print('Saved trained model to $outputPath');
       break;

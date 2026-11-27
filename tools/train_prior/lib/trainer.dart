@@ -16,7 +16,7 @@ class _ScoredToken {
   });
 }
 
-/// Trains prior token distributions from clean public corpora (SpamAssassin, Enron).
+/// Trains prior token distributions from licence-clean public corpora.
 class PriorTrainer {
   final Map<int, TokenCounts> _counts = {};
   int _totalSpam = 0;
@@ -104,6 +104,7 @@ class PriorTrainer {
     int minCount = 2,
     int maxTokens = 20000,
     int scaleTo = 200,
+    String corpora = 'unspecified',
   }) {
     // 1. Filter tokens with total count >= minCount
     final candidates = <int, TokenCounts>{};
@@ -177,7 +178,7 @@ class PriorTrainer {
 
     return {
       'version': 1,
-      'corpora': 'SpamAssassin-public, Enron-Spam',
+      'corpora': corpora,
       'trained_at': DateTime.now().toUtc().toIso8601String(),
       'total_spam': scaledTotalSpam,
       'total_ham': scaledTotalHam,
@@ -204,11 +205,13 @@ class PriorTrainer {
     int minCount = 2,
     int maxTokens = 20000,
     int scaleTo = 200,
+    String corpora = 'unspecified',
   }) {
     final data = exportModel(
       minCount: minCount,
       maxTokens: maxTokens,
       scaleTo: scaleTo,
+      corpora: corpora,
     );
     file.writeAsStringSync(const JsonEncoder.withIndent('  ').convert(data));
   }

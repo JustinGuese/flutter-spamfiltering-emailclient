@@ -214,14 +214,10 @@ class PhishingChecks {
   }
 
   static bool _claimsAnyBrand(String fromHeader, String fromDomain) {
+    // A brand claimed by a sender that is not that brand's own domain. Mail
+    // really sent by the brand (any Reply-To) must not count as a claim.
     final brand = claimedBrand(fromHeader);
-    if (brand != null) return true;
-    for (final b in phishedBrands.keys) {
-      if (isLegitBrandSender(b, fromDomain)) {
-        return true;
-      }
-    }
-    return false;
+    return brand != null && !isLegitBrandSender(brand, fromDomain);
   }
 
   static String _mapLookalike(String domain) {

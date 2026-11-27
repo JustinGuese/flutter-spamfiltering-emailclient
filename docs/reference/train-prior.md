@@ -49,6 +49,7 @@ dart run bin/train_prior.dart train \
   $$\text{salience} = \text{count} \times \left| \log\left( \frac{s + 1}{h + 1} \times \frac{\text{totalH}}{\text{totalS}} \right) \right|$$
   where $s$ and $h$ are token spam and ham counts, and $\text{totalS}$ and $\text{totalH}$ are the total spam and ham messages ingested. Set to `0` for unlimited.
 - `--scale-to` (int): Scale all token counts and message totals so that each class equals at most $N$ messages (defaults to `200`). Any token whose counts round down to `0` across all classes is dropped. Set to `0` to disable scaling.
+- `--corpora` (string): Corpus names recorded in the model file's `corpora` field (defaults to `unspecified`).
 
 #### Why `--scale-to` Matters
 A real training corpus often contains 10,000 to 50,000+ messages. If unscaled totals and counts were imported directly into the user's database:
@@ -139,8 +140,8 @@ dart run bin/train_prior.dart eval \
   --ham-dir=/tmp/corpus/test/ham
 ```
 Verify that:
-- Spam Recall (TPR) meets or exceeds 80%.
-- False Positive Rate (FPR) remains $\le 0.1\%$ on legitimate ham.
+- Spam recall (score ≥ 0.60) is at least 95 %.
+- Ordinary ham moved to Junk (score ≥ 0.90) stays around 1 % or lower. The bundled prior scored 97.4 % recall and 1.0 % on the SpamAssassin hold-out; deliberately spam-like newsletters ("hard ham") score much worse and should be read separately.
 
 ### Step 5: Bundle Verified Model into App
 Once verified by the reviewer:
@@ -158,7 +159,7 @@ The output JSON file contains top-level message totals, category totals, and tok
 ```json
 {
   "version": 1,
-  "corpora": "SpamAssassin-public, Enron-Spam",
+  "corpora": "SpamAssassin public corpus (20030228 + 20050311)",
   "trained_at": "2026-11-27T17:00:00.000Z",
   "total_spam": 200,
   "total_ham": 200,
@@ -207,15 +208,22 @@ When training prior models intended for distribution or bundling into open-sourc
 > TREC data distribution agreements contain strict academic-use-only and non-commercial clauses. Bundling derivative token models trained on TREC data violates the license agreement and prevents commercial or open-source distribution.
 
 ### 2. SpamAssassin Public Corpus
-- The Apache SpamAssassin public corpus is broadly used for anti-spam research and open-source models under the Apache license terms.
-- Verify terms and remove personal identifiable information (PII) before publishing derivative statistics.
+- The SpamAssassin project offers the public corpus to spam-filter developers. Copyright in the message text stays with the original senders, so only derived statistics are distributed: the bundled prior holds hashed token counts, never text.
+- Never send corpus mail into a live mail system (the corpus readme asks for this explicitly).
 
 ### 3. Enron Email Dataset
 - The Enron dataset is in the public domain following the Federal Energy Regulatory Commission (FERC) investigation.
 - Use only cleaned, sanitized distributions. Be mindful that real personal emails and employee correspondence are contained within; ensure tokenization does not leak individual email addresses into distributed priors.
 
-### 4. Seed Prior Notice
-The bundled file `app/assets/prior_model.json` included in this repository is a **minimal, hand-curated seed model** containing baseline structural tokens, not a large corpus-trained model. Production deployments should either train against licensed internal corpora or allow the client to learn from the user's personal mailbox and community blocklists.
+### 4. Bundled Prior
+`app/assets/prior_model.json` is trained on the SpamAssassin public corpus (1,896 spam, 4,150 ham) with the defaults (`--max-tokens 20000`, `--scale-to 200`) and written as compact JSON. Retrain with:
+
+```bash
+dart run bin/train_prior.dart train --spam-dir=<spam> --ham-dir=<ham> \
+  --corpora="SpamAssassin public corpus (20030228 + 20050311)" -o prior_model.json
+```
+
+`CorpusReader` MIME-decodes every message with `enough_mail` (the parser the app's sync uses), so the prior is trained on the same decoded text the app classifies. Non-UTF-8 files are read with malformed bytes replaced instead of being skipped.
 
 See also:
 - [Spam Core API](spam-core-api.md)

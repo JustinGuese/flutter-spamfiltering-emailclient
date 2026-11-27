@@ -172,7 +172,7 @@ void main() {
             stmt.execute(['bench_$i', i + 1, sender, senderEmail, date]);
           }
         } finally {
-          stmt.dispose();
+          stmt.close();
         }
         db.db.execute('COMMIT');
       } catch (_) {

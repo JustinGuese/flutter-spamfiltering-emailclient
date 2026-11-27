@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:spam_core/spam_core.dart';
 import 'package:spamfiltering_emailclient/db/database.dart';
@@ -69,9 +72,10 @@ void main() {
 
     final hamTotalFirst = int.parse(db.getSetting('msg_total_ham') ?? '0');
     final spamTotalFirst = int.parse(db.getSetting('msg_total_spam') ?? '0');
-    // Prior model has 4150 ham, 1896 spam. Cold start adds 10 ham, 1 spam.
-    expect(hamTotalFirst, equals(4150 + 10));
-    expect(spamTotalFirst, equals(1896 + 1));
+    // Totals = the bundled prior's totals + what cold start trained (10 ham, 1 spam).
+    final prior = jsonDecode(File('assets/prior_model.json').readAsStringSync()) as Map<String, dynamic>;
+    expect(hamTotalFirst, equals((prior['total_ham'] as num).toInt() + 10));
+    expect(spamTotalFirst, equals((prior['total_spam'] as num).toInt() + 1));
 
     // Fresh normal message whose words appear in both is NOT scored >= 0.6
     final freshMsg = Message(

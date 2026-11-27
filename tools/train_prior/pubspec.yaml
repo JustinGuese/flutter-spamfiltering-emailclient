@@ -8,6 +8,7 @@ environment:
 dependencies:
   args: ^2.4.2
   crypto: ^3.0.3
+  enough_mail: ^3.0.0
   spam_core:
     path: ../../packages/spam_core
 

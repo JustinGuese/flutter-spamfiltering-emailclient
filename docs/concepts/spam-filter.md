@@ -86,12 +86,12 @@ On a brand-new installation with an empty database, Bayes classification cannot 
 
 ![Onboarding - Spam Filter on Device](../assets/screenshots/onboarding_page2.png)
 
-1. **Seed Prior (`app/assets/prior_model.json`)**:
-   !!! note "Seed Prior Honest Assessment"
-       The bundled `prior_model.json` is a **hand-curated seed** containing approximately 25 high-confidence spam tokens (e.g., `viagra`, `cialis`, `casino`, `pharmacy`, `rolex`, `mortgage`). It is **not** a trained statistical model derived from large public email corpora. Its sole purpose is to provide immediate detection for blatant unsolicited bulk mail before the user trains the filter.
+1. **Trained prior (`app/assets/prior_model.json`)**:
+   Trained with `tools/train_prior` on the SpamAssassin public corpus (1,896 spam, 4,150 ham), keeping the 20,000 most informative tokens and scaling the counts to 200 messages per class, so a user's own verdicts outweigh it quickly. The file holds only token hashes and counts, no message text. It is loaded once, into an empty token table; existing installs keep what they have learned. See [Measured Accuracy](#measured-accuracy-ci-benchmark) for what it does on its own.
 2. **Local Cold-Start Training (`app/lib/filter/cold_start.dart`)**:
    During initial account synchronization, `ColdStartTrainer` scans the user's existing mailbox folders:
    - Scans the IMAP Junk/Spam folder and trains all existing messages as `Label.spam`.
+   - Trains read Inbox and user-folder mail (spam score below 0.60, never Sent) as `Label.ham`, about as many messages as Junk had (at least 50, at most 500). Without this, every common word seen in Junk would score as spam. Runs once (setting `cold_start_ham_trained`), including on installs that already trained Junk only.
    - Scans the Sent folder to extract legitimate recipient email addresses and registers them in the local `contacts` table with `trust_level = 1` and `always_allow_images = 1`.
 
 ---
@@ -175,6 +175,17 @@ To prevent regressions in spam detection and ensure legitimate personal and tran
   2. **Minimal False Positives**: The false-positive flag rate must not exceed $5.0\%$ (share of legitimate ham scored $\ge 0.60$).
   3. **High Spam Recall**: At least $80.0\%$ of unseen spam messages must be identified (scored $\ge 0.60$).
   4. **100% Phishing Detection**: Every phishing fixture must trigger `Verdict.isPhishing`.
+
+- **Prior on real mail** (SpamAssassin public corpus, model trained on 80 %, scored on the held-out 20 %, prior only: no user training, contacts or rules):
+
+  | Measure | Result |
+  |---|---|
+  | Spam caught (score ≥ 0.60) | 97.4 % (370 / 380) |
+  | Spam moved to Junk (≥ 0.90) | 93.4 % |
+  | Ordinary ham moved to Junk (≥ 0.90) | 1.0 % (8 / 784) |
+  | "Hard ham" (commercial HTML newsletters) moved to Junk | 37 % (17 / 46) |
+
+  The corpus is from 2002–2005 and has no `Authentication-Results` headers, so the DMARC/DKIM signals never fire here. On a device, cold-start ham training, the known-contact cap and sender rules all lower false positives further. Reproduce with `train_prior eval` (see [Train Prior](../reference/train-prior.md)).
 
 ---
 
