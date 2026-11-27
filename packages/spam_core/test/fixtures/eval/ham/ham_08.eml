@@ -1,0 +1,6 @@
+From: "Bookstore Orders" <orders@bookstore.example.com>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Bookstore Order Confirmation #BK-49281
+
+Thank you for your order from Bookstore! We received your payment for order #BK-49281. Item: Clean Architecture (Paperback). Your order is being packed for shipment.

@@ -1,0 +1,11 @@
+From: "Backend Talks Podcast" <episodes@podcast.example.org>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Podcast Episode 62: Scaling Event-Driven Microservice Architectures
+List-Unsubscribe: <https://podcast.example.org/unsubscribe>
+List-Id: <talks.podcast.example.org>
+Precedence: list
+
+In this new episode, our guest explores message broker reliability, distributed transactions, and stream processing in production. Thank you for listening to our podcast series!
+
+Unsubscribe from episode alerts: https://podcast.example.org/unsubscribe

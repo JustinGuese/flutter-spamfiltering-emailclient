@@ -1,0 +1,6 @@
+From: "City Public Library" <circulation@library.example.org>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Library Notice: Borrowed books due in 3 days
+
+The book 'Introduction to Algorithms' borrowed on your library card is due for return on Nov 18. You can renew your borrowed items online through our library web portal. Thank you!

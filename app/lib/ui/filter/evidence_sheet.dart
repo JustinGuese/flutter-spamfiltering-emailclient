@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:df_theme/df_theme.dart';
 import 'package:spam_core/spam_core.dart';
 import '../../app/strings.dart';
+import '../../app/ui_strings.dart';
 
 /// Mono-spaced ledger sheet displaying individual signals and their weights.
 class EvidenceSheet extends StatelessWidget {
@@ -21,6 +22,33 @@ class EvidenceSheet extends StatelessWidget {
       ),
       builder: (_) => EvidenceSheet(verdict: verdict),
     );
+  }
+
+  static String _labelForId(String id) {
+    return switch (id) {
+      'sender_blocked' => UiStrings.signalSenderBlocked,
+      'sender_allowed' => UiStrings.signalSenderAllowed,
+      'known_contact' => UiStrings.signalKnownContact,
+      'punycode_domain' => 'Punycode domain spoof',
+      'lookalike_domain' => 'Lookalike domain spoof',
+      'reply_to_mismatch' => 'Reply-To mismatch',
+      'url_shortener' => 'URL shortener',
+      'dangerous_attachment' => 'Dangerous attachment',
+      'image_only' => 'Image-only message',
+      'hidden_text' => 'Hidden text / Zero-width characters',
+      'display_name_spoof_email' => 'Display name email mismatch',
+      'display_name_brand_spoof' => 'Brand spoofing',
+      'link_mismatch' => 'Link anchor / destination mismatch',
+      'disposable_domain' => 'Disposable email provider',
+      'auth_dmarc_fail' => 'DMARC authentication failed',
+      'auth_dmarc_pass' => 'DMARC authentication passed',
+      'auth_spf_fail' => 'SPF authentication failed',
+      'auth_dkim_fail' => 'DKIM signature failed',
+      'community_blocklist' || 'community' => 'Community blocklist match',
+      'bayes' => 'Bayesian word analysis',
+      'advanced_model' => 'On-device neural model',
+      _ => id,
+    };
   }
 
   @override
@@ -119,7 +147,7 @@ class EvidenceSheet extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  e.id,
+                                  _labelForId(e.id),
                                   style: TextStyle(
                                     fontFamily: 'JetBrains Mono',
                                     fontSize: 13,

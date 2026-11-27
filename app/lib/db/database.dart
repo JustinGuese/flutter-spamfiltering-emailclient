@@ -138,6 +138,12 @@ class AppDatabase {
       );
       CREATE INDEX IF NOT EXISTS idx_unsubscribe_log_account_sender
         ON unsubscribe_log (account_id, sender_domain);
+      CREATE TABLE IF NOT EXISTS sender_rules (
+        pattern TEXT PRIMARY KEY,
+        kind TEXT NOT NULL,
+        action TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
     ''');
     _migrate();
     _createSearchIndex();
@@ -214,6 +220,12 @@ class AppDatabase {
       );
       CREATE INDEX IF NOT EXISTS idx_unsubscribe_log_account_sender
         ON unsubscribe_log (account_id, sender_domain);
+      CREATE TABLE IF NOT EXISTS sender_rules (
+        pattern TEXT PRIMARY KEY,
+        kind TEXT NOT NULL,
+        action TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
     ''');
   }
 

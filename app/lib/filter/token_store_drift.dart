@@ -60,12 +60,14 @@ class TokenStoreDrift implements TokenStore {
     try {
       final jsonStr = await rootBundle.loadString('assets/prior_model.json');
       final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+      final totalSpam = (data['total_spam'] as num?)?.toInt() ?? 0;
+      final totalHam = (data['total_ham'] as num?)?.toInt() ?? 0;
       final tokensMap = data['tokens'] as Map<String, dynamic>? ?? {};
 
       db.db.execute('BEGIN TRANSACTION');
       for (final entry in tokensMap.entries) {
         final token = entry.key;
-        final hash = Tokenizer.hashToken(token);
+        final hash = int.tryParse(token) ?? Tokenizer.hashToken(token);
         final counts = entry.value as Map<String, dynamic>;
         final spam = (counts['spam'] as num?)?.toInt() ?? 0;
         final ham = (counts['ham'] as num?)?.toInt() ?? 0;
@@ -75,6 +77,8 @@ class TokenStoreDrift implements TokenStore {
           VALUES (?, ?, ?, 0, 0)
         ''', [hash, spam, ham]);
       }
+      if (totalSpam > 0) db.setSetting('msg_total_spam', totalSpam.toString());
+      if (totalHam > 0) db.setSetting('msg_total_ham', totalHam.toString());
       db.db.execute('COMMIT');
     } catch (e, st) {
       logError('token store', e, st);
@@ -89,6 +93,20 @@ class TokenStoreDrift implements TokenStore {
   int totalTrainedTokens() {
     final row = db.db.select('SELECT SUM(spam + ham + newsletter + inbox) as total FROM tokens');
     return (row.firstOrNull?['total'] as int?) ?? 0;
+  }
+
+  @override
+  Future<({int spam, int ham})> messageTotals() async {
+    final spam = int.tryParse(db.getSetting('msg_total_spam') ?? '') ?? 0;
+    final ham = int.tryParse(db.getSetting('msg_total_ham') ?? '') ?? 0;
+    return (spam: spam, ham: ham);
+  }
+
+  void addMessages(Label label, int delta) {
+    final key = label == Label.spam ? 'msg_total_spam' : 'msg_total_ham';
+    final current = int.tryParse(db.getSetting(key) ?? '') ?? 0;
+    final updated = (current + delta).clamp(0, 1000000000);
+    db.setSetting(key, updated.toString());
   }
 }
 

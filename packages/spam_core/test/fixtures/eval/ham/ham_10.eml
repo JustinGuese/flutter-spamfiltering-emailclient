@@ -1,0 +1,6 @@
+From: "City Power & Water" <billing@utility.example.org>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Monthly Utility Statement for account #88192
+
+Your monthly statement for electricity and water service is available for viewing. Total amount: \$84.20. Your automatic monthly payment is scheduled for processing on November 15. Thank you!

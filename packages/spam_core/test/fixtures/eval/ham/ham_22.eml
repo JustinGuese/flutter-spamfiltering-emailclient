@@ -1,0 +1,6 @@
+From: "Anna Schmidt" <anna@example.de>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Gemuetlicher Kaffee am Donnerstag Nachmittag
+
+Hallo! Hast du am Donnerstag Lust auf einen gemuetlichen Kaffee in unserem Lieblingscafe? Ich haette ab 16:30 Uhr Zeit fuer ein Treffen. Lass mich wissen, wie es bei dir passt. Liebe Gruesse, Anna

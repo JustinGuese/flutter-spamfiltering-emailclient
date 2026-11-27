@@ -246,11 +246,13 @@ class SyncEngine {
         headersMap.putIfAbsent('Subject', () => []).add(subject);
 
         final toList = msg.to?.map((a) => a.email).whereType<String>().toList() ?? const [];
+        final attachmentNames = extractAttachments(msg).map((a) => a.fileName).toList();
         final spamMsg = sc.Message(
           headers: headersMap,
           textBody: snippet,
           htmlBody: rawHtml,
           recipientAddrs: toList,
+          attachmentNames: attachmentNames,
         );
 
         final verdict = await filterService!.classifyMessage(

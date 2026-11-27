@@ -1,0 +1,6 @@
+From: "Fahrradwerkstatt Radler" <service@radler.example.de>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Fertigstellung der Fahrradinspektion und Abholung
+
+Guten Tag, die Inspektion Ihres Rades ist abgeschlossen. Bremsen und Kette wurden fachgerecht eingestellt. Sie koennen Ihr Fahrrad zu unseren regulaeren Geschaeftszeiten abholen. Vielen Dank fuer Ihren Auftrag!

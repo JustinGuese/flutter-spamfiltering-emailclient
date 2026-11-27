@@ -1,0 +1,6 @@
+From: "Alice Smith" <alice@example.com>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Lunch tomorrow around noon?
+
+Hi, let me know if you are free for lunch tomorrow around 12:30. We could try that new Italian place down the street. Hope all is well with you!

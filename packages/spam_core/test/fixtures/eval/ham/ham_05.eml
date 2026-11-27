@@ -1,0 +1,6 @@
+From: "Elena Rostova" <elena@example.org>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Database migration RFC draft for team review
+
+Hi everyone, here is the draft RFC outlining our planned database migration to SQLite FTS5. Please leave your comments and suggestions directly in the document before next Tuesday.

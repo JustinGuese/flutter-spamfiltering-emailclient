@@ -1,0 +1,6 @@
+From: "Pine Dental Clinic" <reception@pinedental.example.com>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Dental Checkup Reminder for Monday afternoon
+
+This is a friendly appointment reminder for your upcoming routine dental cleaning on Monday, Nov 14 at 2:00 PM. Please call our office if you need to reschedule your visit. We look forward to seeing you!

@@ -3,19 +3,38 @@ import 'dart:async';
 /// Classification labels supported by the engine.
 enum Label { spam, ham, newsletter, inbox }
 
+/// Action configured for a sender or domain rule.
+enum SenderRuleAction { allow, block }
+
+/// Identifiers for evidence signals that indicate phishing.
+const Set<String> phishingEvidenceIds = {
+  'display_name_spoof_email',
+  'display_name_brand_spoof',
+  'link_mismatch',
+  'lookalike_domain',
+  'punycode_domain',
+  'reply_to_mismatch',
+  'dangerous_attachment',
+};
+
 /// Represents an incoming or stored email message.
 class Message {
   final Map<String, List<String>> headers;
   final String textBody;
   final String? htmlBody;
   final List<String> recipientAddrs;
+  final List<String> attachmentNames;
 
   const Message({
     required this.headers,
     required this.textBody,
     this.htmlBody,
     this.recipientAddrs = const [],
+    this.attachmentNames = const [],
   });
+
+  /// Reply-To header value or null.
+  String? get replyTo => firstHeader('reply-to');
 
   /// Case-insensitive header retrieval.
   List<String> getHeader(String name) {
@@ -39,6 +58,7 @@ class Message {
 class Normalized {
   final Message original;
   final String cleanedText;
+  final String tokenText;
   final String? cleanedHtml;
   final List<String> extractedUrls;
   final String? senderDomain;
@@ -48,12 +68,13 @@ class Normalized {
   const Normalized({
     required this.original,
     required this.cleanedText,
+    String? tokenText,
     this.cleanedHtml,
     this.extractedUrls = const [],
     this.senderDomain,
     this.isSenderFreemail = false,
     this.wordCount = 0,
-  });
+  }) : tokenText = tokenText ?? cleanedText;
 }
 
 /// Counts of token occurrences across classes.
@@ -96,6 +117,7 @@ class TokenCounts {
 abstract class TokenStore {
   FutureOr<TokenCounts> counts(int hash);
   FutureOr<void> apply(int hash, Label label, int delta);
+  Future<({int spam, int ham})> messageTotals();
 }
 
 /// Explanation for a single signal contributing to classification.
@@ -128,6 +150,9 @@ class Verdict {
     required this.spamScore,
     this.evidence = const [],
   });
+
+  /// Whether any evidence signal indicates phishing.
+  bool get isPhishing => evidence.any((e) => phishingEvidenceIds.contains(e.id));
 }
 
 /// Anonymous fingerprints for community sharing and local matching.
@@ -153,11 +178,15 @@ class Fingerprints {
 class Signals {
   final double? advancedModelScore;
   final bool? communityBlocklistMatch;
+  final bool knownContact;
+  final SenderRuleAction? senderRule;
   final Map<String, dynamic>? extra;
 
   const Signals({
     this.advancedModelScore,
     this.communityBlocklistMatch,
+    this.knownContact = false,
+    this.senderRule,
     this.extra,
   });
 }

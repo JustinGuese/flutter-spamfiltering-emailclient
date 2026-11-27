@@ -1,0 +1,11 @@
+From: "Culinary Corner" <recipes@cooking.example.com>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Culinary Corner: Seasonal Autumn Vegetable Soup Recipes
+List-Unsubscribe: <https://cooking.example.com/unsub>
+List-Id: <corner.cooking.example.com>
+Precedence: bulk
+
+Explore five wholesome homemade soup recipes featuring butternut squash and fresh herbs. We hope you enjoy preparing these hearty dishes in your home kitchen!
+
+You received this newsletter because you opted in. Unsubscribe: https://cooking.example.com/unsub

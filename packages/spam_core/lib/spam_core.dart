@@ -9,5 +9,7 @@ export 'src/combiner.dart';
 export 'src/auth_results.dart';
 export 'src/fingerprint.dart';
 export 'src/heuristics.dart';
+export 'src/phishing.dart';
+export 'src/brands.dart';
 export 'src/store_memory.dart';
 export 'src/freemail_domains.dart';

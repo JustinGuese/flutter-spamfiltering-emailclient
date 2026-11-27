@@ -155,6 +155,8 @@ class VerdictController {
         tokenStore.apply(h, prevLabel, -1);
         tokenStore.apply(h, newLabel, 1);
       }
+      tokenStore.addMessages(prevLabel, -1);
+      tokenStore.addMessages(newLabel, 1);
       db.db.execute('UPDATE messages SET classification_label = ?, spam_score = ? WHERE id = ?',
           [newLabel.name, score, messageId]);
       db.db.execute('''

@@ -85,7 +85,7 @@ class BayesClassifier {
     double unsureLow = unsureLower,
     double unsureHigh = unsureUpper,
   }) async {
-    final probs = <double>[];
+    final significantProbs = <double>[];
 
     for (final hash in tokenHashes) {
       final counts = await store.counts(hash);
@@ -97,20 +97,21 @@ class BayesClassifier {
       if (s == 0 && h == 0) {
         tokenProb = priorSpamProbability;
       } else {
-        final double fs = totalSpamMessages > 0 ? (s / totalSpamMessages) : (s / (s + h));
-        final double fh = totalHamMessages > 0 ? (h / totalHamMessages) : (h / (s + h));
+        final useTotals = totalSpamMessages > 0 && totalHamMessages > 0;
+        final double fs = useTotals ? (s / totalSpamMessages) : (s / (s + h));
+        final double fh = useTotals ? (h / totalHamMessages) : (h / (s + h));
         final raw = (fs + fh > 0.0) ? (fs / (fs + fh)) : priorSpamProbability;
-        final n = s + h;
+        final n = math.min(s + h, 1000000);
         tokenProb = (priorWeight * priorSpamProbability + n * raw) / (priorWeight + n);
       }
 
-      // Include tokens that deviate from neutral
-      if ((tokenProb - priorSpamProbability).abs() >= 0.01) {
-        probs.add(tokenProb);
+      // Keep only tokens with |p - 0.5| >= 0.1
+      if ((tokenProb - priorSpamProbability).abs() >= 0.1) {
+        significantProbs.add(tokenProb);
       }
     }
 
-    if (probs.isEmpty) {
+    if (significantProbs.isEmpty) {
       return const BayesResult(
         score: priorSpamProbability,
         hStat: 0.0,
@@ -120,6 +121,16 @@ class BayesClassifier {
         tokenCount: 0,
         isUnsure: true,
       );
+    }
+
+    // At most 150 most extreme tokens (classic Robinson/SpamBayes)
+    final List<double> probs;
+    if (significantProbs.length > 150) {
+      significantProbs.sort((a, b) =>
+          (b - priorSpamProbability).abs().compareTo((a - priorSpamProbability).abs()));
+      probs = significantProbs.sublist(0, 150);
+    } else {
+      probs = significantProbs;
     }
 
     final k = probs.length;

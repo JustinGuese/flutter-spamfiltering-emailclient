@@ -75,10 +75,25 @@ class CorpusReader {
       recipientAddrs.addAll(to.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty));
     }
 
+    final contentType = (headers['content-type'] ?? []).join(' ').toLowerCase();
+    final isHtml = contentType.contains('text/html') ||
+        body.contains(RegExp(r'<html|<body|<a\s+href', caseSensitive: false));
+    final htmlBody = isHtml ? body : null;
+
+    final attachmentNames = <String>[];
+    for (final match in RegExp(r'''filename=["']?([^"'\r\n;]+)["']?''', caseSensitive: false).allMatches(raw)) {
+      final name = match.group(1)?.trim();
+      if (name != null && name.isNotEmpty && !attachmentNames.contains(name)) {
+        attachmentNames.add(name);
+      }
+    }
+
     return Message(
       headers: headers,
       textBody: body,
+      htmlBody: htmlBody,
       recipientAddrs: recipientAddrs,
+      attachmentNames: attachmentNames,
     );
   }
 }

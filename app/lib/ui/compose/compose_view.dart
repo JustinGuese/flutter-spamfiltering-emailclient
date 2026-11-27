@@ -8,6 +8,7 @@ import '../../app/log.dart';
 import '../../mail/attachments.dart';
 import '../../app/strings.dart';
 import '../../app/ui_strings.dart';
+import '../../db/database.dart';
 import '../../theme/app_type.dart';
 import '../common/app_parts.dart';
 import '../../mail/account_repository.dart';
@@ -334,7 +335,7 @@ class _ComposeViewState extends ConsumerState<ComposeView> {
         loaded.add(LoadedAttachment(a.fileName, a.mimeType, bytes));
       }
 
-      final smtp = SmtpService();
+      final smtp = SmtpService(db: ref.read(databaseProvider));
       await smtp.sendMail(
         account: account,
         auth: auth,

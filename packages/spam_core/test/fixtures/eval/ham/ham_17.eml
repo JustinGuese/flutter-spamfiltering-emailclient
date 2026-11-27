@@ -1,0 +1,11 @@
+From: "Open Source Chronicles" <updates@opensource.example.org>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Open Source Monthly: Framework updates and community projects
+List-Unsubscribe: <mailto:unsub@opensource.example.org?subject=unsubscribe>
+List-Id: <chronicles.opensource.example.org>
+Precedence: list
+
+Here is your monthly community roundup of trending libraries, developer tools, and maintainer interviews. Thank you to everyone contributing to open-source software.
+
+To manage your email preferences or unsubscribe: https://opensource.example.org/preferences

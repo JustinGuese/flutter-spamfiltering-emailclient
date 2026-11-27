@@ -1,0 +1,11 @@
+From: "Weekly Tech Digest" <newsletter@news.example.com>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Weekly Tech Digest #84: Engineering Articles and Roundup
+List-Unsubscribe: <https://news.example.com/unsub/weekly-tech>
+List-Id: <tech.news.example.com>
+Precedence: bulk
+
+Welcome to this week's digest of software engineering stories, WebAssembly benchmarks, and architectural retrospectives. Thank you for reading our weekly publication.
+
+Unsubscribe link: https://news.example.com/unsub/weekly-tech

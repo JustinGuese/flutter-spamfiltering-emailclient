@@ -1,0 +1,6 @@
+From: "Bob Johnson" <bob@example.com>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Hiking trip this Saturday morning
+
+Hey! The weather forecast for Saturday looks great. We are planning to meet at the trailhead at 9:00 AM. Bring plenty of water and snacks. Let me know if you need a ride from our place.

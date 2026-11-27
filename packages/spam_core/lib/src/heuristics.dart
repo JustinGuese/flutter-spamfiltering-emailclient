@@ -1,5 +1,7 @@
+import 'brands.dart';
 import 'contracts.dart';
 import 'freemail_domains.dart';
+import 'phishing.dart';
 
 /// Heuristic checks for phishing, spoofing, and suspicious message patterns.
 class Heuristics {
@@ -16,18 +18,6 @@ class Heuristics {
     r'''<a\s+[^>]*href=["'](https?://[^"']+)["'][^>]*>([\s\S]*?)</a>''',
     caseSensitive: false,
   );
-
-  static const Set<String> _sensitiveBrands = {
-    'paypal',
-    'apple',
-    'google',
-    'microsoft',
-    'netflix',
-    'amazon',
-    'chase',
-    'bankofamerica',
-    'wellsfargo',
-  };
 
   /// Evaluates heuristics on a normalized message.
   static List<Evidence> evaluate(Normalized normalized) {
@@ -52,6 +42,9 @@ class Heuristics {
     if (normalized.original.htmlBody != null) {
       _checkLinkMismatches(normalized.original.htmlBody!, evidence);
     }
+
+    // 4. Phishing and evasion heuristics
+    evidence.addAll(PhishingChecks.evaluate(normalized));
 
     return evidence;
   }
@@ -82,9 +75,11 @@ class Heuristics {
     }
 
     // Check if display name claims a sensitive brand but domain doesn't match
-    for (final brand in _sensitiveBrands) {
+    for (final entry in phishedBrands.entries) {
+      final brand = entry.key;
       if (displayName.contains(brand)) {
-        if (senderDomain == null || !senderDomain.contains(brand)) {
+        final senderReg = senderDomain != null ? getRegistrableDomain(senderDomain) : '';
+        if (senderDomain == null || !entry.value.contains(senderReg)) {
           evidence.add(Evidence(
             id: 'display_name_brand_spoof',
             weight: 0.35,

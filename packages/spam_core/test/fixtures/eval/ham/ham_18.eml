@@ -1,0 +1,11 @@
+From: "Green Thumb Journal" <journal@gardening.example.com>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Gardening Journal: Autumn Soil Care and Composting Tips
+List-Unsubscribe: <https://gardening.example.com/unsubscribe?id=99281>
+List-Id: <journal.gardening.example.com>
+Precedence: bulk
+
+In this edition of our gardening journal, we discuss winter mulching and composting techniques for your perennial flower beds. Thank you for subscribing to our seasonal gardening tips.
+
+To unsubscribe from future garden newsletters: https://gardening.example.com/unsubscribe

@@ -3,16 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:spam_core/spam_core.dart';
 import '../community/matcher.dart';
 import '../db/database.dart';
+import 'sender_rules.dart';
 import 'token_store_drift.dart';
 
+/// Service classifying incoming mail and retrieving stored verdicts.
 class FilterService {
   final AppDatabase db;
   final TokenStoreDrift tokenStore;
+  final SenderRules senderRules;
 
   FilterService({
     required this.db,
     required this.tokenStore,
-  });
+    SenderRules? senderRules,
+  }) : senderRules = senderRules ?? SenderRules(db);
 
   Future<Verdict> classifyMessage({
     required String messageId,
@@ -24,8 +28,13 @@ class FilterService {
     final matcher = CommunityMatcher(db);
     final matchedCommunity = isCommunityMatch || matcher.matches(fingerprints);
 
+    final fromHeader = message.firstHeader('from') ?? '';
+    final senderAddr = SenderRules.extractEmail(fromHeader);
+
     final signals = Signals(
       communityBlocklistMatch: matchedCommunity,
+      knownContact: senderRules.isContact(senderAddr),
+      senderRule: senderRules.lookup(senderAddr),
     );
 
     final rawVerdict = await Classifier.score(
@@ -107,5 +116,6 @@ class FilterService {
 final filterServiceProvider = Provider<FilterService>((ref) {
   final db = ref.watch(databaseProvider);
   final store = ref.watch(tokenStoreProvider);
-  return FilterService(db: db, tokenStore: store);
+  final rules = ref.watch(senderRulesProvider);
+  return FilterService(db: db, tokenStore: store, senderRules: rules);
 });

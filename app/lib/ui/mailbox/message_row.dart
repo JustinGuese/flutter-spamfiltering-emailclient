@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:df_theme/df_theme.dart';
 import 'package:df_ui_widgets/df_ui_widgets.dart';
 import 'package:spam_core/spam_core.dart';
+import '../../app/ui_strings.dart';
 import '../../theme/app_type.dart';
 import '../common/app_parts.dart';
 import '../common/formats.dart';
@@ -39,6 +40,8 @@ class MessageRow extends StatefulWidget {
   final bool isSelected;
   final bool isComfortable;
   final VoidCallback onTap;
+  final VoidCallback? onMarkSpam;
+  final VoidCallback? onMarkNotSpam;
 
   const MessageRow({
     super.key,
@@ -46,6 +49,8 @@ class MessageRow extends StatefulWidget {
     required this.isSelected,
     required this.isComfortable,
     required this.onTap,
+    this.onMarkSpam,
+    this.onMarkNotSpam,
   });
 
   @override
@@ -171,6 +176,38 @@ class _MessageRowState extends State<MessageRow> {
                             ),
                           ),
                         ]),
+                      ],
+                      if (widget.onMarkNotSpam != null || widget.onMarkSpam != null) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            if (widget.onMarkNotSpam != null)
+                              OutlinedButton(
+                                onPressed: widget.onMarkNotSpam,
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  side: BorderSide(color: c.hairline),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(context.df.shape.sm)),
+                                ),
+                                child: Text(UiStrings.actionNotSpam, style: AppType.ui(c.textPrimary, size: 12, weight: FontWeight.w500)),
+                              ),
+                            const SizedBox(width: 8),
+                            if (widget.onMarkSpam != null)
+                              OutlinedButton(
+                                onPressed: widget.onMarkSpam,
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  side: BorderSide(color: c.error.base.withValues(alpha: 0.5)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(context.df.shape.sm)),
+                                ),
+                                child: Text(UiStrings.actionSpam, style: AppType.ui(c.error.deep, size: 12, weight: FontWeight.w500)),
+                              ),
+                          ],
+                        ),
                       ],
                     ],
                   ),

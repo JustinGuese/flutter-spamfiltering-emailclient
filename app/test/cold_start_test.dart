@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:spam_core/spam_core.dart';
 import 'package:spamfiltering_emailclient/db/database.dart';
 import 'package:spamfiltering_emailclient/filter/cold_start.dart';
 import 'package:spamfiltering_emailclient/filter/token_store_drift.dart';
@@ -26,5 +27,66 @@ void main() {
     await trainer.runColdStart();
     await trainer.runColdStart();
     expect(store.totalTrainedTokens(), afterFirst);
+  });
+
+  test('an inbox of read normal mail + a junk folder balanced cold start', () async {
+    final db = await AppDatabase.open(inMemory: true);
+    db.db.execute(
+        "INSERT INTO folders (id, account_id, name, server_path, special_use) VALUES ('junk', 'a', 'Junk', 'Junk', 'junk')");
+    db.db.execute(
+        "INSERT INTO folders (id, account_id, name, server_path, special_use) VALUES ('inbox', 'a', 'Inbox', 'INBOX', 'inbox')");
+
+    // Junk message with overlapping words
+    db.db.execute('''
+      INSERT INTO messages (id, account_id, folder_id, uid, subject, sender,
+        recipient_addrs, date, snippet, is_read, spam_score)
+      VALUES ('j1', 'a', 'junk', 1, 'project update invoice schedule', 'spam@test.com',
+        'me@example.com', '2026-01-01T00:00:00Z', '', 0, 0.9)
+    ''');
+    db.db.execute('''
+      INSERT INTO bodies (message_id, text_body)
+      VALUES ('j1', 'urgent project update schedule invoice meeting details')
+    ''');
+
+    // Inbox messages with overlapping words
+    for (var i = 1; i <= 10; i++) {
+      db.db.execute('''
+        INSERT INTO messages (id, account_id, folder_id, uid, subject, sender,
+          recipient_addrs, date, snippet, is_read, spam_score)
+        VALUES ('m$i', 'a', 'inbox', ${10 + i}, 'project update schedule', 'colleague$i@example.com',
+          'me@example.com', '2026-01-02T0$i:00:00Z', '', 1, 0.0)
+      ''');
+      db.db.execute('''
+        INSERT INTO bodies (message_id, text_body)
+        VALUES ('m$i', 'project update schedule invoice meeting details for team discussion')
+      ''');
+    }
+
+    final store = TokenStoreDrift(db);
+    final trainer = ColdStartTrainer(db: db, tokenStore: store);
+
+    await trainer.runColdStart();
+
+    final hamTotalFirst = int.parse(db.getSetting('msg_total_ham') ?? '0');
+    final spamTotalFirst = int.parse(db.getSetting('msg_total_spam') ?? '0');
+    // Prior model has 4150 ham, 1896 spam. Cold start adds 10 ham, 1 spam.
+    expect(hamTotalFirst, equals(4150 + 10));
+    expect(spamTotalFirst, equals(1896 + 1));
+
+    // Fresh normal message whose words appear in both is NOT scored >= 0.6
+    final freshMsg = Message(
+      headers: {
+        'From': ['client@example.com'],
+        'Subject': ['project update schedule'],
+      },
+      textBody: 'project update schedule meeting details',
+    );
+    final verdict = await Classifier.score(Normalizer.normalize(freshMsg), store);
+    expect(verdict.spamScore, lessThan(0.6));
+
+    // Running cold start twice does not double ham counts
+    await trainer.runColdStart();
+    final hamTotalSecond = int.parse(db.getSetting('msg_total_ham') ?? '0');
+    expect(hamTotalSecond, equals(hamTotalFirst));
   });
 }

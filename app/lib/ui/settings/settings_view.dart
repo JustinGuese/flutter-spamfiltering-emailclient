@@ -10,6 +10,7 @@ import 'accounts_tile.dart';
 import 'account_tile.dart';
 import 'appearance_tile.dart';
 import 'notifications_tile.dart';
+import 'sender_rules_tile.dart';
 import 'sharing_tile.dart';
 import 'unsubscribe_tile.dart';
 
@@ -44,7 +45,7 @@ class SettingsView extends StatelessWidget {
               ),
               DfSettingsGroup(
                 title: UiStrings.settingsPrivacy,
-                children: [CommunitySharingTile(), UnsubscribeTile()],
+                children: [CommunitySharingTile(), UnsubscribeTile(), SenderRulesTile()],
               ),
               DfSettingsGroup(
                 title: UiStrings.settingsPro,

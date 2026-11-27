@@ -135,5 +135,77 @@ void main() {
       expect(verdict.label, equals(Label.spam));
       expect(verdict.evidence.any((e) => e.id == 'community_blocklist'), isTrue);
     });
+
+    test('block rule forces 1.0 spamScore and sender_blocked evidence', () async {
+      final msg = Message(
+        headers: {'from': ['friend@example.com'], 'subject': ['Hello']},
+        textBody: 'Normal friendly email content.',
+      );
+      final norm = Normalizer.normalize(msg);
+      final signals = const Signals(senderRule: SenderRuleAction.block);
+      final verdict = await Classifier.score(norm, store, signals);
+
+      expect(verdict.spamScore, equals(1.0));
+      expect(verdict.label, equals(Label.spam));
+      expect(verdict.evidence.any((e) => e.id == 'sender_blocked'), isTrue);
+    });
+
+    test('allow rule caps spamScore at 0.05 and keeps sender_allowed evidence', () async {
+      final msg = Message(
+        headers: {
+          'from': ['spammer@bad.com'],
+          'subject': ['Claim your lottery winnings now'],
+        },
+        textBody: 'Congratulations! You won the international lottery reward! Claim your payout immediately.',
+      );
+      final norm = Normalizer.normalize(msg);
+      final signals = const Signals(senderRule: SenderRuleAction.allow);
+      final verdict = await Classifier.score(norm, store, signals);
+
+      expect(verdict.spamScore, lessThanOrEqualTo(0.05));
+      expect(verdict.label, isNot(equals(Label.spam)));
+      expect(verdict.evidence.any((e) => e.id == 'sender_allowed'), isTrue);
+    });
+
+    test('known contact with spammy Bayes is capped at < 0.90', () async {
+      final msg = Message(
+        headers: {
+          'from': ['friend@example.com'],
+          'subject': ['Claim your lottery winnings now'],
+        },
+        textBody: 'Congratulations! You won the international lottery reward! Claim your payout immediately.',
+      );
+      final norm = Normalizer.normalize(msg);
+
+      // Without knownContact, spam score is high (>= 0.60)
+      final plainVerdict = await Classifier.score(norm, store);
+      expect(plainVerdict.spamScore, greaterThanOrEqualTo(0.60));
+
+      // With knownContact, capped at 0.89 so it is never auto-moved to Junk
+      final contactSignals = const Signals(knownContact: true);
+      final contactVerdict = await Classifier.score(norm, store, contactSignals);
+
+      expect(contactVerdict.spamScore, lessThan(0.90));
+      expect(contactVerdict.evidence.any((e) => e.id == 'known_contact'), isTrue);
+    });
+
+    test('known contact with link_mismatch phishing is not capped', () async {
+      final msg = Message(
+        headers: {
+          'from': ['friend@example.com'],
+          'subject': ['Important notice regarding your lottery'],
+        },
+        textBody: 'Urgent lottery security update https://paypal.com',
+        htmlBody: '<a href="https://evil-phish.com/steal">https://paypal.com/verify</a>',
+      );
+      final norm = Normalizer.normalize(msg);
+      final signals = const Signals(knownContact: true);
+      final verdict = await Classifier.score(norm, store, signals);
+
+      expect(verdict.evidence.any((e) => e.id == 'link_mismatch'), isTrue);
+      expect(verdict.isPhishing, isTrue);
+      // Link mismatch adds +2.5 logit, bayes adds spam, so uncapped it reaches >= 0.90
+      expect(verdict.spamScore, greaterThanOrEqualTo(0.90));
+    });
   });
 }

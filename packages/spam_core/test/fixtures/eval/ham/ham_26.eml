@@ -1,0 +1,6 @@
+From: "HR Team" <hr@example.org>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Engineering Team Offsite Schedule and Logistics
+
+Dear team, our annual engineering team offsite will take place on December 15. Transportation, meeting room schedules, and dinner arrangements are detailed in the attached schedule. Thank you for confirming your attendance!

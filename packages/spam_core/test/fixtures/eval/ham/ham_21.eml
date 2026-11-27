@@ -1,0 +1,6 @@
+From: "Stefan Mueller" <stefan@example.de>
+To: <user@example.org>
+Authentication-Results: mx.example.com; dkim=pass; dmarc=pass
+Subject: Projektstatus und Besprechung der naechsten Schritte
+
+Hallo zusammen, vielen Dank fuer das konstruktive Gespraech heute Vormittag. Anbei sende ich Ihnen die Zusammenfassung unseres aktuellen Arbeitsstandes sowie die Terminplanung. Bitte pruefen Sie die Meilensteine bis zum naechsten Meeting. Herzliche Gruesse, Stefan

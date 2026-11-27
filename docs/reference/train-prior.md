@@ -15,9 +15,18 @@ cd tools/train_prior
 dart run bin/train_prior.dart <command> [options]
 ```
 
+Or view global and command-specific help:
+
+```bash
+dart run bin/train_prior.dart --help
+dart run bin/train_prior.dart train --help
+```
+
+---
+
 ### 1. `train`
 
-Trains token frequency distributions across spam, ham, and newsletter corpora, filtering out low-frequency noise.
+Trains token frequency distributions across spam, ham, and newsletter corpora, selects the most informative features using log-odds salience ranking, scales class totals to prevent cold-start ossification, and discards low-frequency noise.
 
 ```bash
 dart run bin/train_prior.dart train \
@@ -25,7 +34,9 @@ dart run bin/train_prior.dart train \
   --ham-dir=/path/to/ham \
   --news-dir=/path/to/newsletters \
   --output=prior_model.json \
-  --min-count=2
+  --min-count=2 \
+  --max-tokens=20000 \
+  --scale-to=200
 ```
 
 #### Options:
@@ -33,7 +44,16 @@ dart run bin/train_prior.dart train \
 - `--ham-dir` (string): Directory containing legitimate ham `.eml` files.
 - `--news-dir` (string, optional): Directory containing newsletter `.eml` files.
 - `-o`, `--output` (string): Output JSON model path (defaults to `prior_model.json`).
-- `--min-count` (int): Minimum total occurrences required across classes for a token to be retained (defaults to `2`). Discards single-occurrence ephemeral tokens.
+- `--min-count` (int): Minimum total occurrences required across classes for a token to be considered (defaults to `2`). Discards single-occurrence ephemeral tokens.
+- `--max-tokens` (int): Maximum number of top informative tokens to retain (defaults to `20000`). Tokens are ranked by information salience:
+  $$\text{salience} = \text{count} \times \left| \log\left( \frac{s + 1}{h + 1} \times \frac{\text{totalH}}{\text{totalS}} \right) \right|$$
+  where $s$ and $h$ are token spam and ham counts, and $\text{totalS}$ and $\text{totalH}$ are the total spam and ham messages ingested. Set to `0` for unlimited.
+- `--scale-to` (int): Scale all token counts and message totals so that each class equals at most $N$ messages (defaults to `200`). Any token whose counts round down to `0` across all classes is dropped. Set to `0` to disable scaling.
+
+#### Why `--scale-to` Matters
+A real training corpus often contains 10,000 to 50,000+ messages. If unscaled totals and counts were imported directly into the user's database:
+- The classifier would require thousands of explicit user verdicts before the user's personal corrections could meaningfully shift token probabilities.
+- Scaling each class to at most $N = 200$ preserves the relative conditional likelihoods and discriminative power of the prior model while allowing on-device learning: a user's 5–10 corrections on recurring emails quickly outweigh the prior.
 
 ---
 
@@ -70,28 +90,109 @@ dart run bin/train_prior.dart generate-default --output=prior_model.json
 
 ---
 
+## Recommended Workflow: Training from Real Corpora
+
+Follow this step-by-step workflow when updating the bundled prior model with clean, public corpora:
+
+### Step 1: Download License-Clean Corpora
+Ensure datasets allow redistribution of statistical n-gram derivatives (see [Corpora Licensing](#corpora-licensing--privacy-caveats) below):
+- **Apache SpamAssassin Public Corpus**:
+  Download `easy_ham` and `spam_2` archives from [SpamAssassin Public Corpus](https://spamassassin.apache.org/old/publiccorpus/):
+  ```bash
+  mkdir -p /tmp/corpus/raw && cd /tmp/corpus/raw
+  curl -O https://spamassassin.apache.org/old/publiccorpus/20030228_easy_ham.tar.bz2
+  curl -O https://spamassassin.apache.org/old/publiccorpus/20050311_spam_2.tar.bz2
+  ```
+- **Enron-Spam Dataset**:
+  Download pre-cleaned Enron ham and spam splits from [AUEB Enron-Spam](http://nlp.cs.aueb.gr/software_and_datasets/Enron-Spam/index.html).
+
+### Step 2: Unpack and Organize Train/Test Splits
+Extract the files into dedicated training and evaluation directories:
+```bash
+mkdir -p /tmp/corpus/train/ham /tmp/corpus/train/spam
+mkdir -p /tmp/corpus/test/ham /tmp/corpus/test/spam
+
+tar -xjf 20030228_easy_ham.tar.bz2 -C /tmp/corpus/raw/
+tar -xjf 20050311_spam_2.tar.bz2 -C /tmp/corpus/raw/
+
+# Reserve an 80/20 train/test split
+```
+
+### Step 3: Run Training
+Execute `train_prior train` with `--max-tokens=20000` and `--scale-to=200`:
+```bash
+cd tools/train_prior
+dart run bin/train_prior.dart train \
+  --spam-dir=/tmp/corpus/train/spam \
+  --ham-dir=/tmp/corpus/train/ham \
+  --max-tokens=20000 \
+  --scale-to=200 \
+  --output=/tmp/prior_model.json
+```
+
+### Step 4: Evaluate Model Performance
+Validate against the held-out test split:
+```bash
+dart run bin/train_prior.dart eval \
+  --model=/tmp/prior_model.json \
+  --spam-dir=/tmp/corpus/test/spam \
+  --ham-dir=/tmp/corpus/test/ham
+```
+Verify that:
+- Spam Recall (TPR) meets or exceeds 80%.
+- False Positive Rate (FPR) remains $\le 0.1\%$ on legitimate ham.
+
+### Step 5: Bundle Verified Model into App
+Once verified by the reviewer:
+```bash
+cp /tmp/prior_model.json app/assets/prior_model.json
+```
+Run `flutter test` in `app/` to ensure all cold-start and sync tests pass with the updated model.
+
+---
+
 ## Model JSON File Format
 
-The output JSON file maps 63-bit integer token hashes (serialized as decimal strings) to their respective category counts:
+The output JSON file contains top-level message totals, category totals, and token hashes mapped to their respective category counts:
 
 ```json
 {
-  "5829103948102938": {
-    "spam": 142,
-    "ham": 3,
+  "version": 1,
+  "corpora": "SpamAssassin-public, Enron-Spam",
+  "trained_at": "2026-11-27T17:00:00.000Z",
+  "total_spam": 200,
+  "total_ham": 200,
+  "totals": {
+    "spam": 200,
+    "ham": 200,
     "newsletter": 0,
     "inbox": 0
   },
-  "2910481029384719": {
-    "spam": 1,
-    "ham": 89,
-    "newsletter": 4,
-    "inbox": 85
+  "raw_totals": {
+    "spam": 14200,
+    "ham": 28400,
+    "newsletter": 0,
+    "inbox": 0
+  },
+  "token_count": 18450,
+  "tokens": {
+    "5829103948102938": {
+      "spam": 142,
+      "ham": 3,
+      "newsletter": 0,
+      "inbox": 0
+    },
+    "2910481029384719": {
+      "spam": 1,
+      "ham": 89,
+      "newsletter": 4,
+      "inbox": 85
+    }
   }
 }
 ```
 
-When loaded by `CorpusEvaluator.loadModel(file)` or `TokenStoreDrift.loadPrior(json)`, keys are parsed into 64-bit integer hashes and populated into the token store.
+When loaded by `CorpusEvaluator.loadModel(file)` or `TokenStoreDrift.seedPriorModelIfEmpty()`, keys are resolved (supporting both 64-bit integer hashes and legacy string tokens) and seeded into the token database alongside `total_spam` and `total_ham`.
 
 ---
 
@@ -106,7 +207,7 @@ When training prior models intended for distribution or bundling into open-sourc
 > TREC data distribution agreements contain strict academic-use-only and non-commercial clauses. Bundling derivative token models trained on TREC data violates the license agreement and prevents commercial or open-source distribution.
 
 ### 2. SpamAssassin Public Corpus
-- The Apache SpamAssassin public corpus is broadly used for anti-spam research.
+- The Apache SpamAssassin public corpus is broadly used for anti-spam research and open-source models under the Apache license terms.
 - Verify terms and remove personal identifiable information (PII) before publishing derivative statistics.
 
 ### 3. Enron Email Dataset

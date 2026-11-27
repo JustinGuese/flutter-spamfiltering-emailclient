@@ -94,5 +94,75 @@ Thanks for choosing our service.
       await store.apply(hash, Label.spam, -1);
       expect((await store.counts(hash)).spam, equals(2));
     });
+
+    test('tracks messageTotals and addMessages', () async {
+      final store = MemoryTokenStore();
+      expect(await store.messageTotals(), equals((spam: 0, ham: 0)));
+
+      store.addMessages(Label.spam, 5);
+      store.addMessages(Label.ham, 10);
+      store.addMessages(Label.newsletter, 2);
+      expect(await store.messageTotals(), equals((spam: 5, ham: 12)));
+
+      store.addMessages(Label.spam, -2);
+      expect(await store.messageTotals(), equals((spam: 3, ham: 12)));
+
+      // Clamp at 0
+      store.addMessages(Label.spam, -10);
+      expect(await store.messageTotals(), equals((spam: 0, ham: 12)));
+
+      // Alias
+      final aliasStore = InMemoryTokenStore(null, 2, 4);
+      expect(await aliasStore.messageTotals(), equals((spam: 2, ham: 4)));
+    });
+  });
+
+  group('Contracts', () {
+    test('Message attachmentNames and replyTo', () {
+      const msg = Message(
+        headers: {
+          'Reply-To': ['replies@example.com'],
+        },
+        textBody: 'Hello',
+        attachmentNames: ['invoice.pdf'],
+      );
+      expect(msg.attachmentNames, equals(['invoice.pdf']));
+      expect(msg.replyTo, equals('replies@example.com'));
+
+      const emptyMsg = Message(headers: {}, textBody: '');
+      expect(emptyMsg.attachmentNames, isEmpty);
+      expect(emptyMsg.replyTo, isNull);
+    });
+
+    test('Signals knownContact and senderRule', () {
+      const signals = Signals(
+        knownContact: true,
+        senderRule: SenderRuleAction.allow,
+      );
+      expect(signals.knownContact, isTrue);
+      expect(signals.senderRule, equals(SenderRuleAction.allow));
+    });
+
+    test('Verdict isPhishing', () {
+      const nonPhish = Verdict(
+        label: Label.spam,
+        spamScore: 0.9,
+        evidence: [
+          Evidence(id: 'bayes', weight: 0.8, detail: 'bayes match'),
+        ],
+      );
+      expect(nonPhish.isPhishing, isFalse);
+
+      for (final id in phishingEvidenceIds) {
+        final phish = Verdict(
+          label: Label.spam,
+          spamScore: 0.95,
+          evidence: [
+            Evidence(id: id, weight: 0.5, detail: 'test'),
+          ],
+        );
+        expect(phish.isPhishing, isTrue, reason: '$id should be detected as phishing');
+      }
+    });
   });
 }
